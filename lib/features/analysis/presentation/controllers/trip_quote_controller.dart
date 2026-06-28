@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../shared/data/id_factory.dart';
 import '../../../costs/domain/models/cost_inputs.dart';
+import '../../../costs/domain/services/toll_estimator.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/domain/repositories/trip_repository.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
@@ -19,6 +20,7 @@ class TripQuoteController extends ChangeNotifier {
   TripQuoteController({
     required this.calculator,
     required this.routeService,
+    required this.tollEstimator,
     required this.vehicleProfileRepository,
     required this.tripRepository,
     required CostInputs initialCosts,
@@ -26,6 +28,7 @@ class TripQuoteController extends ChangeNotifier {
 
   final ProfitabilityCalculator calculator;
   final RouteService routeService;
+  final TollEstimator tollEstimator;
   final VehicleProfileRepository vehicleProfileRepository;
   final TripRepository tripRepository;
 
@@ -48,6 +51,8 @@ class TripQuoteController extends ChangeNotifier {
   String? errorMessage;
   RouteInfo? route;
   CostInputs costs;
+  TollEstimate? tollEstimate;
+  bool tollsEditedManually = false;
 
   RouteInfo? get effectiveRoute {
     final currentRoute = route;
@@ -87,6 +92,52 @@ class TripQuoteController extends ChangeNotifier {
     );
   }
 
+  Future<bool> prepareAnalysis() async {
+    if (route == null) {
+      await calculateRoute();
+      if (route == null) {
+        return false;
+      }
+    }
+
+    final profile = vehicleProfile;
+    if (profile == null || !profile.isComplete) {
+      errorMessage = 'Carga el perfil del vehiculo antes de calcular.';
+      notifyListeners();
+      return false;
+    }
+
+    if (!tripInputs.isValid) {
+      errorMessage = 'Carga el precio del viaje antes de calcular.';
+      notifyListeners();
+      return false;
+    }
+
+    errorMessage = null;
+    notifyListeners();
+    return analysis != null;
+  }
+
+  void resetSimulation() {
+    origin = '';
+    destination = '';
+    originPoint = null;
+    destinationPoint = null;
+    pricingMode = PricingMode.flatRate;
+    flatRate = 0;
+    tons = 0;
+    pricePerTon = 0;
+    emptyReturn = false;
+    isRouteLoading = false;
+    isSaving = false;
+    errorMessage = null;
+    route = null;
+    costs = const CostInputs();
+    tollEstimate = null;
+    tollsEditedManually = false;
+    notifyListeners();
+  }
+
   void load() {
     _subscriptions.add(
       vehicleProfileRepository.watch().listen((profile) {
@@ -106,6 +157,7 @@ class TripQuoteController extends ChangeNotifier {
     originPoint = point;
     origin = _formatPoint(point);
     route = null;
+    tollEstimate = null;
     notifyListeners();
   }
 
@@ -113,6 +165,7 @@ class TripQuoteController extends ChangeNotifier {
     destinationPoint = point;
     destination = _formatPoint(point);
     route = null;
+    tollEstimate = null;
     notifyListeners();
   }
 
@@ -133,6 +186,7 @@ class TripQuoteController extends ChangeNotifier {
         origin: origin,
         destination: destination,
       );
+      _applyEstimatedTolls(force: !tollsEditedManually || costs.tolls == 0);
     } on Object catch (error) {
       errorMessage = error.toString();
     } finally {
@@ -173,7 +227,13 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void setTolls(double value) {
+    tollsEditedManually = true;
     costs = costs.copyWith(tolls: value);
+    notifyListeners();
+  }
+
+  void useEstimatedTolls() {
+    _applyEstimatedTolls(force: true);
     notifyListeners();
   }
 
@@ -184,6 +244,7 @@ class TripQuoteController extends ChangeNotifier {
 
   void setEmptyReturn(bool value) {
     emptyReturn = value;
+    _applyEstimatedTolls(force: !tollsEditedManually);
     notifyListeners();
   }
 
@@ -232,8 +293,31 @@ class TripQuoteController extends ChangeNotifier {
     pricePerTon = record.trip.pricePerTon;
     costs = record.costs;
     emptyReturn = record.emptyReturn;
+    tollEstimate = tollEstimator.estimate(
+      route: record.route,
+      emptyReturn: record.emptyReturn,
+    );
+    tollsEditedManually = true;
     errorMessage = null;
     notifyListeners();
+  }
+
+  void _applyEstimatedTolls({required bool force}) {
+    final currentRoute = route;
+    if (currentRoute == null) {
+      tollEstimate = null;
+      return;
+    }
+
+    final estimate = tollEstimator.estimate(
+      route: currentRoute,
+      emptyReturn: emptyReturn,
+    );
+    tollEstimate = estimate;
+    if (force) {
+      costs = costs.copyWith(tolls: estimate.amount);
+      tollsEditedManually = false;
+    }
   }
 
   String _formatPoint(LatLngValue point) {

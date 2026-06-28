@@ -24,4 +24,7 @@ flutter build web --release \
   --pwa-strategy=none \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
   --dart-define=SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-}" \
-  --dart-define=OSRM_BASE_URL="${OSRM_BASE_URL:-https://router.project-osrm.org}"
+  --dart-define=OSRM_BASE_URL="${OSRM_BASE_URL:-https://router.project-osrm.org}" \
+  --dart-define=TOLL_RATE_PER_KM="${TOLL_RATE_PER_KM:-35}" \
+  --dart-define=TOLL_MINIMUM="${TOLL_MINIMUM:-0}" \
+  --dart-define=TOLL_ROUND_TO="${TOLL_ROUND_TO:-100}"

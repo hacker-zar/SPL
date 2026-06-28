@@ -7,6 +7,7 @@ import 'features/analysis/domain/services/profitability_calculator.dart';
 import 'features/analysis/presentation/controllers/trip_quote_controller.dart';
 import 'features/analysis/presentation/screens/trip_quote_screen.dart';
 import 'features/costs/domain/models/cost_inputs.dart';
+import 'features/costs/domain/services/toll_estimator.dart';
 import 'features/history/data/memory_trip_repository.dart';
 import 'features/history/data/supabase_trip_repository.dart';
 import 'features/history/domain/repositories/trip_repository.dart';
@@ -53,12 +54,18 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       defaultValue: 'https://router.project-osrm.org',
     );
     final routeService = OsrmRouteService(baseUrl: osrmBaseUrl);
+    final tollEstimator = TollEstimator(
+      ratePerKm: _doubleEnvironment('TOLL_RATE_PER_KM', 35),
+      minimumAmount: _doubleEnvironment('TOLL_MINIMUM', 0),
+      roundTo: _doubleEnvironment('TOLL_ROUND_TO', 100),
+    );
 
     controller = TripQuoteController(
       calculator: const ProfitabilityCalculator(
         marginThresholds: ProfitabilityThresholds(),
       ),
       routeService: routeService,
+      tollEstimator: tollEstimator,
       vehicleProfileRepository: vehicleProfileRepository,
       tripRepository: tripRepository,
       initialCosts: const CostInputs(),
@@ -76,9 +83,18 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
     return MaterialApp(
       title: 'Conviene este viaje?',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.dark(),
       home: TripQuoteScreen(controller: controller),
     );
   }
+}
+
+double _doubleEnvironment(String name, double fallback) {
+  final value = switch (name) {
+    'TOLL_RATE_PER_KM' => const String.fromEnvironment('TOLL_RATE_PER_KM'),
+    'TOLL_MINIMUM' => const String.fromEnvironment('TOLL_MINIMUM'),
+    'TOLL_ROUND_TO' => const String.fromEnvironment('TOLL_ROUND_TO'),
+    _ => '',
+  };
+  return double.tryParse(value) ?? fallback;
 }

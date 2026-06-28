@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+
 enum ProfitabilityStatus {
   profitable,
   low,
@@ -15,9 +17,9 @@ enum ProfitabilityStatus {
 
   Color get color {
     return switch (this) {
-      ProfitabilityStatus.profitable => const Color(0xFF1B7F3A),
-      ProfitabilityStatus.low => const Color(0xFFE2A400),
-      ProfitabilityStatus.loss => const Color(0xFFC62828),
+      ProfitabilityStatus.profitable => AppColors.decisionGo,
+      ProfitabilityStatus.low => AppColors.decisionLow,
+      ProfitabilityStatus.loss => AppColors.decisionStop,
     };
   }
 }

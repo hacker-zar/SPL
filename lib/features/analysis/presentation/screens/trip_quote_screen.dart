@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart' as ll;
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../history/domain/models/trip_record.dart';
@@ -111,7 +113,6 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        final analysis = controller.analysis;
         final profile = controller.vehicleProfile;
         return Scaffold(
           appBar: AppBar(
@@ -135,14 +136,11 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
               children: [
                 if (controller.errorMessage != null)
                   _ErrorBanner(message: controller.errorMessage!),
-                if (analysis != null) ...[
-                  _DecisionHeader(status: analysis.status),
-                  const SizedBox(height: 12),
-                ],
-                if (profile == null || !profile.isComplete) ...[
-                  _ProfileBanner(onPressed: _showVehicleProfile),
-                  const SizedBox(height: 12),
-                ],
+                _VehicleSection(
+                  profile: profile,
+                  onPressed: _showVehicleProfile,
+                ),
+                const SizedBox(height: 12),
                 _RouteSection(
                   controller: controller,
                   pickTarget: routePickTarget,
@@ -167,12 +165,37 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
                   allowancesFocus: allowancesFocus,
                 ),
                 const SizedBox(height: 12),
-                _ResultSection(controller: controller),
+                FilledButton.icon(
+                  onPressed: controller.isRouteLoading
+                      ? null
+                      : _calculateTripAndOpenResults,
+                  icon: controller.isRouteLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.analytics_outlined),
+                  label: const Text('Calcular viaje'),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Future<void> _calculateTripAndOpenResults() async {
+    final canOpenResults = await controller.prepareAnalysis();
+    if (!mounted || !canOpenResults) {
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => TripResultScreen(controller: controller),
+      ),
     );
   }
 
@@ -212,6 +235,14 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
                   onTap: () {
                     controller.openTrip(trip);
                     Navigator.of(context).pop();
+                    if (controller.analysis != null) {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              TripResultScreen(controller: controller),
+                        ),
+                      );
+                    }
                   },
                 );
               },
@@ -219,6 +250,62 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
               itemCount: controller.history.length,
             );
           },
+        );
+      },
+    );
+  }
+}
+
+class TripResultScreen extends StatelessWidget {
+  const TripResultScreen({
+    required this.controller,
+    super.key,
+  });
+
+  final TripQuoteController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Resultado del viaje'),
+          ),
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                if (controller.errorMessage != null)
+                  _ErrorBanner(message: controller.errorMessage!),
+                _ResultSection(controller: controller),
+                const SizedBox(height: 12),
+                _Section(
+                  title: 'Acciones',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Modificar datos'),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: () {
+                          controller.resetSimulation();
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.add_road_outlined),
+                        label: const Text('Nueva simulacion'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -347,6 +434,16 @@ class _OfferSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tollEstimate = controller.tollEstimate;
+    final tollsLabel = tollEstimate == null
+        ? 'Peajes'
+        : controller.tollsEditedManually
+            ? 'Peajes editados'
+            : 'Peajes estimados';
+    final tollsHelper = tollEstimate == null
+        ? 'Auto al calcular'
+        : '${decimal(tollEstimate.distanceKm)} km';
+
     return _Section(
       title: 'Oferta',
       child: Column(
@@ -428,9 +525,18 @@ class _OfferSection extends StatelessWidget {
                 child: TextField(
                   controller: tollsController,
                   focusNode: tollsFocus,
-                  decoration: const InputDecoration(
-                    labelText: 'Peajes',
-                    prefixIcon: Icon(Icons.confirmation_number_outlined),
+                  decoration: InputDecoration(
+                    labelText: tollsLabel,
+                    helperText: tollsHelper,
+                    prefixIcon:
+                        const Icon(Icons.confirmation_number_outlined),
+                    suffixIcon: tollEstimate == null
+                        ? null
+                        : IconButton(
+                            tooltip: 'Usar peaje estimado',
+                            icon: const Icon(Icons.refresh),
+                            onPressed: controller.useEstimatedTolls,
+                          ),
                   ),
                   keyboardType: TextInputType.number,
                   onChanged: (value) =>
@@ -472,6 +578,7 @@ class _ResultSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final analysis = controller.analysis;
+    final route = controller.effectiveRoute;
     if (analysis == null) {
       return const _Section(
         title: 'Resultado',
@@ -485,48 +592,148 @@ class _ResultSection extends StatelessWidget {
     final minimumValue = controller.pricingMode == PricingMode.perTon
         ? analysis.minimumPricePerTon
         : analysis.breakEvenPrice;
+    final fuelAndMaintenance = analysis.fuelCost + analysis.maintenanceCost;
+    final conclusion = switch (analysis.status) {
+      ProfitabilityStatus.profitable =>
+        'El viaje cubre los costos y deja una ganancia saludable.',
+      ProfitabilityStatus.low =>
+        'El viaje deja ganancia, pero el margen es bajo. Conviene negociar precio o revisar costos.',
+      ProfitabilityStatus.loss =>
+        'El viaje no cubre los costos estimados. No conviene aceptarlo con estos datos.',
+    };
 
-    return _Section(
-      title: 'Resultado',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GridView.count(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            crossAxisCount: MediaQuery.sizeOf(context).width > 520 ? 3 : 2,
-            childAspectRatio: 1.45,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DecisionHeader(status: analysis.status),
+        const SizedBox(height: 12),
+        _Section(
+          title: 'Resumen general',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              MetricTile(label: 'Ingreso', value: money(analysis.grossIncome)),
-              MetricTile(label: 'Costos', value: money(analysis.totalCosts)),
+              _MetricGrid(
+                children: [
+                  if (route != null)
+                    MetricTile(
+                      label: 'Kilometros',
+                      value: decimal(route.distanceKm),
+                    ),
+                  if (route != null)
+                    MetricTile(
+                      label: 'Tiempo',
+                      value: '${decimal(route.durationMinutes / 60)} h',
+                    ),
+                  MetricTile(
+                    label: 'Ingreso esperado',
+                    value: money(analysis.grossIncome),
+                  ),
+                  MetricTile(
+                    label: 'Costos totales',
+                    value: money(analysis.totalCosts),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(conclusion),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _Section(
+          title: 'Costos desglosados',
+          child: _MetricGrid(
+            children: [
               MetricTile(
-                label: 'Ganancia neta',
+                label: 'Combustible',
+                value: money(analysis.fuelCost),
+              ),
+              MetricTile(
+                label: 'Mantenimiento',
+                value: money(analysis.maintenanceCost),
+              ),
+              MetricTile(
+                label: 'Peajes',
+                value: money(controller.costs.tolls),
+              ),
+              MetricTile(
+                label: 'Viaticos',
+                value: money(controller.costs.allowances),
+              ),
+              MetricTile(
+                label: 'Km sensibles',
+                value: money(fuelAndMaintenance),
+              ),
+              MetricTile(
+                label: 'Total costos',
+                value: money(analysis.totalCosts),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _Section(
+          title: 'Rentabilidad',
+          child: _MetricGrid(
+            children: [
+              MetricTile(
+                label: 'Ganancia',
                 value: money(analysis.netProfit),
                 accentColor: analysis.status.color,
+              ),
+              MetricTile(
+                label: 'Margen',
+                value: '${decimal(analysis.marginPercent)}%',
+                accentColor: analysis.status.color,
+              ),
+              MetricTile(
+                label: 'Ingreso/km',
+                value: money(analysis.incomePerKm),
+              ),
+              MetricTile(
+                label: 'Costo/km',
+                value: money(analysis.costPerKm),
               ),
               MetricTile(
                 label: 'Ganancia/km',
                 value: money(analysis.profitPerKm),
                 accentColor: analysis.status.color,
               ),
-              MetricTile(
-                label: 'Margen',
-                value: '${decimal(analysis.marginPercent)}%',
-              ),
               MetricTile(label: minimumLabel, value: money(minimumValue)),
             ],
           ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed:
-                controller.isSaving ? null : controller.saveCurrentTrip,
+        ),
+        const SizedBox(height: 12),
+        _Section(
+          title: 'Guardar',
+          child: FilledButton.icon(
+            onPressed: controller.isSaving ? null : controller.saveCurrentTrip,
             icon: const Icon(Icons.save_outlined),
-            label: Text(controller.isSaving ? 'Guardando...' : 'Guardar simulacion'),
+            label: Text(
+              controller.isSaving ? 'Guardando...' : 'Guardar simulacion',
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricGrid extends StatelessWidget {
+  const _MetricGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      crossAxisCount: MediaQuery.sizeOf(context).width > 520 ? 3 : 2,
+      childAspectRatio: 1.45,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      children: children,
     );
   }
 }
@@ -538,30 +745,39 @@ class _DecisionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = switch (status) {
-      ProfitabilityStatus.profitable => 'Si, te conviene.',
-      ProfitabilityStatus.low => 'Margen bajo.',
-      ProfitabilityStatus.loss => 'No aceptes este viaje.',
-    };
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.12),
-        border: Border.all(color: status.color),
-        borderRadius: BorderRadius.circular(8),
+        color: status.color,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
         child: Row(
           children: [
-            Icon(Icons.circle, color: status.color, size: 18),
-            const SizedBox(width: 12),
+            Icon(
+              switch (status) {
+                ProfitabilityStatus.profitable => Icons.check_circle,
+                ProfitabilityStatus.low => Icons.warning_amber_rounded,
+                ProfitabilityStatus.loss => Icons.cancel,
+              },
+              color: AppColors.asphalt,
+              size: 36,
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
-                label,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: status.color,
-                      fontWeight: FontWeight.w800,
-                    ),
+                switch (status) {
+                  ProfitabilityStatus.profitable => 'TE CONVIENE',
+                  ProfitabilityStatus.low => 'MARGEN BAJO',
+                  ProfitabilityStatus.loss => 'NO ACEPTES',
+                },
+                style: GoogleFonts.oswald(
+                  color: AppColors.asphalt,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                  height: 1,
+                ),
               ),
             ),
           ],
@@ -571,31 +787,71 @@ class _DecisionHeader extends StatelessWidget {
   }
 }
 
-class _ProfileBanner extends StatelessWidget {
-  const _ProfileBanner({required this.onPressed});
+class _VehicleSection extends StatelessWidget {
+  const _VehicleSection({
+    required this.profile,
+    required this.onPressed,
+  });
 
+  final VehicleProfile? profile;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.primary),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
+    final currentProfile = profile;
+    if (currentProfile == null || !currentProfile.isComplete) {
+      return _Section(
+        title: 'Vehiculo',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.local_shipping_outlined),
-            const SizedBox(width: 8),
-            const Expanded(child: Text('Carga tu vehiculo una vez.')),
-            TextButton(
+            const Text('Carga consumo, mantenimiento y capacidad una vez.'),
+            const SizedBox(height: 10),
+            FilledButton.icon(
               onPressed: onPressed,
-              child: const Text('Abrir'),
+              icon: const Icon(Icons.local_shipping_outlined),
+              label: const Text('Cargar vehiculo'),
             ),
           ],
         ),
+      );
+    }
+
+    return _Section(
+      title: 'Vehiculo',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _MetricGrid(
+            children: [
+              MetricTile(
+                label: 'Consumo',
+                value:
+                    '${decimal(currentProfile.consumptionLitersPer100Km)} L/100',
+              ),
+              MetricTile(
+                label: 'Mantenimiento',
+                value: money(currentProfile.maintenanceCostPerKm),
+              ),
+              MetricTile(
+                label: 'Capacidad',
+                value: '${decimal(currentProfile.capacityTons)} tn',
+              ),
+              MetricTile(
+                label: 'Patente',
+                value: currentProfile.plate.isEmpty
+                    ? 'Sin cargar'
+                    : currentProfile.plate,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Editar vehiculo'),
+          ),
+        ],
       ),
     );
   }
@@ -618,13 +874,30 @@ class _Section extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  color: AppColors.roadYellow,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
                   ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             child,
           ],
         ),
@@ -709,7 +982,6 @@ class _RoutePickerMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final initialCenter = _toLatLng(origin) ??
         _toLatLng(destination) ??
         const ll.LatLng(-34.6037, -58.3816);
@@ -720,21 +992,29 @@ class _RoutePickerMap extends StatelessWidget {
           point: _toLatLng(origin)!,
           width: 44,
           height: 44,
-          child: const Icon(Icons.trip_origin, color: Colors.green, size: 32),
+          child: const Icon(
+            Icons.trip_origin,
+            color: AppColors.decisionGo,
+            size: 32,
+          ),
         ),
       if (destination != null)
         Marker(
           point: _toLatLng(destination)!,
           width: 44,
           height: 44,
-          child: const Icon(Icons.place, color: Colors.red, size: 34),
+          child: const Icon(
+            Icons.place,
+            color: AppColors.roadYellow,
+            size: 34,
+          ),
         ),
     ];
 
     return SizedBox(
       height: 260,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         child: FlutterMap(
           options: MapOptions(
             initialCenter: initialCenter,
@@ -759,7 +1039,7 @@ class _RoutePickerMap extends StatelessWidget {
                   Polyline(
                     points: polylinePoints,
                     strokeWidth: 5,
-                    color: colorScheme.primary,
+                    color: AppColors.roadYellow,
                   ),
                 ],
               ),
@@ -770,15 +1050,17 @@ class _RoutePickerMap extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: colorScheme.surface.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(6),
+                    color: AppColors.asphalt.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     child: Text(
                       '(c) OpenStreetMap',
-                      style: Theme.of(context).textTheme.labelSmall,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                 ),
@@ -790,9 +1072,8 @@ class _RoutePickerMap extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colorScheme.outlineVariant),
+                    color: AppColors.roadYellow,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Padding(
                     padding:
@@ -801,7 +1082,10 @@ class _RoutePickerMap extends StatelessWidget {
                       pickTarget == _RoutePickTarget.origin
                           ? 'Toca el origen'
                           : 'Toca el destino',
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: const TextStyle(
+                        color: AppColors.textOnYellow,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/theme/app_theme.dart';
 
 class MetricTile extends StatelessWidget {
   const MetricTile({
@@ -14,26 +17,42 @@ class MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final color = accentColor ?? AppColors.textPrimary;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: accentColor != null
+              ? accentColor!.withValues(alpha: 0.55)
+              : AppColors.outline,
+        ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label, style: textTheme.labelMedium),
-            const SizedBox(height: 6),
+            Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
               value,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: textTheme.titleMedium?.copyWith(
-                color: accentColor,
+              style: GoogleFonts.jetBrainsMono(
+                color: color,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
             ),
