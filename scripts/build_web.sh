@@ -21,6 +21,7 @@ flutter --version
 flutter config --enable-web
 flutter pub get
 flutter build web --release \
+  --pwa-strategy=none \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
   --dart-define=SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-}" \
   --dart-define=OSRM_BASE_URL="${OSRM_BASE_URL:-https://router.project-osrm.org}"

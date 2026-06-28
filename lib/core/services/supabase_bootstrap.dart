@@ -6,7 +6,14 @@ class SupabaseConfig {
   static const publishableKey =
       String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
 
-  static bool get isConfigured => url.isNotEmpty && publishableKey.isNotEmpty;
+  static bool get isConfigured {
+    final parsedUrl = Uri.tryParse(url);
+    final hasValidUrl =
+        parsedUrl != null && parsedUrl.hasScheme && parsedUrl.host.isNotEmpty;
+    final hasUsableKey = publishableKey.startsWith('eyJ') ||
+        publishableKey.startsWith('sb_publishable_');
+    return hasValidUrl && hasUsableKey;
+  }
 }
 
 class SupabaseBootstrap {
