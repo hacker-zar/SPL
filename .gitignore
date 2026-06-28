@@ -3,6 +3,7 @@
 .flutter-plugins-dependencies
 .packages
 .flutter/
+.cache/
 build/
 coverage/
 

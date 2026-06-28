@@ -39,7 +39,7 @@ class ProfitabilityCalculator {
     final totalCosts = fuelCost + maintenanceCost + fixedCosts;
     final netProfit = grossIncome - totalCosts;
     final marginPercent =
-        grossIncome == 0 ? 0 : (netProfit / grossIncome) * 100;
+        grossIncome == 0 ? 0.0 : (netProfit / grossIncome) * 100;
     final incomePerKm = _safeDivide(grossIncome, effectiveRoute.distanceKm);
     final costPerKm = _safeDivide(totalCosts, effectiveRoute.distanceKm);
     final profitPerKm = _safeDivide(netProfit, effectiveRoute.distanceKm);

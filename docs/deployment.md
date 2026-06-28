@@ -14,7 +14,7 @@ flutter pub get
 flutter run -d chrome \
   --dart-define=SUPABASE_URL=$SUPABASE_URL \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY \
-  --dart-define=GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY
+  --dart-define=OSRM_BASE_URL=${OSRM_BASE_URL:-https://router.project-osrm.org}
 ```
 
 Si faltan variables, la app cae a repositorios en memoria para desarrollo de UI.
@@ -42,9 +42,13 @@ Variables requeridas:
 
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
-- `GOOGLE_MAPS_API_KEY`
+- `OSRM_BASE_URL` opcional, por defecto `https://router.project-osrm.org`
 
 El script `scripts/build_web.sh` instala Flutter en el entorno de build si no esta disponible y compila Flutter Web.
+
+Variable opcional para fijar la version de Flutter usada en Vercel:
+
+- `FLUTTER_VERSION`, por defecto `3.27.4`
 
 ## GitHub CI
 

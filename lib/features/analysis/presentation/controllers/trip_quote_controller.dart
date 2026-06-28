@@ -6,6 +6,7 @@ import '../../../../shared/data/id_factory.dart';
 import '../../../costs/domain/models/cost_inputs.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/domain/repositories/trip_repository.dart';
+import '../../../route_planning/domain/models/lat_lng_value.dart';
 import '../../../route_planning/domain/models/route_info.dart';
 import '../../../route_planning/domain/services/route_service.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
@@ -35,6 +36,8 @@ class TripQuoteController extends ChangeNotifier {
 
   String origin = '';
   String destination = '';
+  LatLngValue? originPoint;
+  LatLngValue? destinationPoint;
   PricingMode pricingMode = PricingMode.flatRate;
   double flatRate = 0;
   double tons = 0;
@@ -99,21 +102,25 @@ class TripQuoteController extends ChangeNotifier {
     );
   }
 
-  void setOrigin(String value) {
-    origin = value.trim();
+  void setOriginPoint(LatLngValue point) {
+    originPoint = point;
+    origin = _formatPoint(point);
     route = null;
     notifyListeners();
   }
 
-  void setDestination(String value) {
-    destination = value.trim();
+  void setDestinationPoint(LatLngValue point) {
+    destinationPoint = point;
+    destination = _formatPoint(point);
     route = null;
     notifyListeners();
   }
 
   Future<void> calculateRoute() async {
-    if (origin.isEmpty || destination.isEmpty) {
-      errorMessage = 'Carga origen y destino para calcular la ruta.';
+    final origin = originPoint;
+    final destination = destinationPoint;
+    if (origin == null || destination == null) {
+      errorMessage = 'Selecciona origen y destino en el mapa.';
       notifyListeners();
       return;
     }
@@ -217,6 +224,8 @@ class TripQuoteController extends ChangeNotifier {
     route = record.route;
     origin = record.route.originName;
     destination = record.route.destinationName;
+    originPoint = record.route.origin;
+    destinationPoint = record.route.destination;
     pricingMode = record.trip.pricingMode;
     flatRate = record.trip.flatRate;
     tons = record.trip.tons;
@@ -225,6 +234,10 @@ class TripQuoteController extends ChangeNotifier {
     emptyReturn = record.emptyReturn;
     errorMessage = null;
     notifyListeners();
+  }
+
+  String _formatPoint(LatLngValue point) {
+    return '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
   }
 
   @override

@@ -1,14 +1,15 @@
+import '../domain/models/lat_lng_value.dart';
 import '../domain/models/route_info.dart';
 import '../domain/services/route_service.dart';
 
 class ManualRouteService implements RouteService {
   @override
   Future<RouteInfo> calculateRoute({
-    required String origin,
-    required String destination,
+    required LatLngValue origin,
+    required LatLngValue destination,
   }) {
     throw ManualRouteRequiredException(
-      'Configure GOOGLE_MAPS_API_KEY to calculate routes automatically.',
+      'No hay servicio de rutas disponible.',
     );
   }
 }

@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
@@ -24,8 +24,6 @@ class TripQuoteScreen extends StatefulWidget {
 }
 
 class _TripQuoteScreenState extends State<TripQuoteScreen> {
-  final originController = TextEditingController();
-  final destinationController = TextEditingController();
   final flatRateController = TextEditingController();
   final tonsController = TextEditingController();
   final pricePerTonController = TextEditingController();
@@ -33,14 +31,13 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   final tollsController = TextEditingController();
   final allowancesController = TextEditingController();
 
-  final originFocus = FocusNode();
-  final destinationFocus = FocusNode();
   final flatRateFocus = FocusNode();
   final tonsFocus = FocusNode();
   final pricePerTonFocus = FocusNode();
   final fuelPriceFocus = FocusNode();
   final tollsFocus = FocusNode();
   final allowancesFocus = FocusNode();
+  _RoutePickTarget routePickTarget = _RoutePickTarget.origin;
 
   TripQuoteController get controller => widget.controller;
 
@@ -54,16 +51,12 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   @override
   void dispose() {
     controller.removeListener(_syncControllers);
-    originController.dispose();
-    destinationController.dispose();
     flatRateController.dispose();
     tonsController.dispose();
     pricePerTonController.dispose();
     fuelPriceController.dispose();
     tollsController.dispose();
     allowancesController.dispose();
-    originFocus.dispose();
-    destinationFocus.dispose();
     flatRateFocus.dispose();
     tonsFocus.dispose();
     pricePerTonFocus.dispose();
@@ -74,8 +67,6 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   }
 
   void _syncControllers() {
-    _setText(originController, originFocus, controller.origin);
-    _setText(destinationController, destinationFocus, controller.destination);
     _setText(flatRateController, flatRateFocus, _textNumber(controller.flatRate));
     _setText(tonsController, tonsFocus, _textNumber(controller.tons));
     _setText(
@@ -154,10 +145,10 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
                 ],
                 _RouteSection(
                   controller: controller,
-                  originController: originController,
-                  destinationController: destinationController,
-                  originFocus: originFocus,
-                  destinationFocus: destinationFocus,
+                  pickTarget: routePickTarget,
+                  onPickTargetChanged: (target) {
+                    setState(() => routePickTarget = target);
+                  },
                 ),
                 const SizedBox(height: 12),
                 _OfferSection(
@@ -237,17 +228,13 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
 class _RouteSection extends StatelessWidget {
   const _RouteSection({
     required this.controller,
-    required this.originController,
-    required this.destinationController,
-    required this.originFocus,
-    required this.destinationFocus,
+    required this.pickTarget,
+    required this.onPickTargetChanged,
   });
 
   final TripQuoteController controller;
-  final TextEditingController originController;
-  final TextEditingController destinationController;
-  final FocusNode originFocus;
-  final FocusNode destinationFocus;
+  final _RoutePickTarget pickTarget;
+  final ValueChanged<_RoutePickTarget> onPickTargetChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -257,25 +244,43 @@ class _RouteSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: originController,
-            focusNode: originFocus,
-            decoration: const InputDecoration(
-              labelText: 'Origen',
-              prefixIcon: Icon(Icons.trip_origin),
-            ),
-            textInputAction: TextInputAction.next,
-            onChanged: controller.setOrigin,
+          SegmentedButton<_RoutePickTarget>(
+            segments: const [
+              ButtonSegment<_RoutePickTarget>(
+                value: _RoutePickTarget.origin,
+                icon: Icon(Icons.trip_origin),
+                label: Text('Origen'),
+              ),
+              ButtonSegment<_RoutePickTarget>(
+                value: _RoutePickTarget.destination,
+                icon: Icon(Icons.place_outlined),
+                label: Text('Destino'),
+              ),
+            ],
+            selected: {pickTarget},
+            onSelectionChanged: (selected) {
+              onPickTargetChanged(selected.first);
+            },
           ),
           const SizedBox(height: 10),
-          TextField(
-            controller: destinationController,
-            focusNode: destinationFocus,
-            decoration: const InputDecoration(
-              labelText: 'Destino',
-              prefixIcon: Icon(Icons.place_outlined),
-            ),
-            onChanged: controller.setDestination,
+          _RoutePickerMap(
+            origin: controller.originPoint,
+            destination: controller.destinationPoint,
+            routePoints: route?.polyline ?? const [],
+            pickTarget: pickTarget,
+            onPointPicked: (point) {
+              if (pickTarget == _RoutePickTarget.origin) {
+                controller.setOriginPoint(point);
+                onPickTargetChanged(_RoutePickTarget.destination);
+              } else {
+                controller.setDestinationPoint(point);
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          _SelectedRoutePoints(
+            origin: controller.origin,
+            destination: controller.destination,
           ),
           const SizedBox(height: 10),
           SwitchListTile(
@@ -302,8 +307,6 @@ class _RouteSection extends StatelessWidget {
               routeKm: route.distanceKm,
               minutes: route.durationMinutes,
             ),
-            const SizedBox(height: 10),
-            _MapPreview(points: route.polyline),
           ],
         ],
       ),
@@ -470,9 +473,9 @@ class _ResultSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final analysis = controller.analysis;
     if (analysis == null) {
-      return _Section(
+      return const _Section(
         title: 'Resultado',
-        child: const Text('Completa ruta, oferta y perfil para decidir.'),
+        child: Text('Completa ruta, oferta y perfil para decidir.'),
       );
     }
 
@@ -542,7 +545,7 @@ class _DecisionHeader extends StatelessWidget {
     };
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: status.color.withOpacity(0.12),
+        color: status.color.withValues(alpha: 0.12),
         border: Border.all(color: status.color),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -656,51 +659,165 @@ class _RouteSummary extends StatelessWidget {
   }
 }
 
-class _MapPreview extends StatelessWidget {
-  const _MapPreview({required this.points});
+enum _RoutePickTarget { origin, destination }
 
-  final List<LatLngValue> points;
+class _SelectedRoutePoints extends StatelessWidget {
+  const _SelectedRoutePoints({
+    required this.origin,
+    required this.destination,
+  });
+
+  final String origin;
+  final String destination;
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb || points.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final latLngPoints = points
-        .map((point) => LatLng(point.latitude, point.longitude))
-        .toList(growable: false);
+    return Row(
+      children: [
+        Expanded(
+          child: MetricTile(
+            label: 'Origen',
+            value: origin.isEmpty ? 'Toca el mapa' : origin,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: MetricTile(
+            label: 'Destino',
+            value: destination.isEmpty ? 'Toca el mapa' : destination,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RoutePickerMap extends StatelessWidget {
+  const _RoutePickerMap({
+    required this.origin,
+    required this.destination,
+    required this.routePoints,
+    required this.pickTarget,
+    required this.onPointPicked,
+  });
+
+  final LatLngValue? origin;
+  final LatLngValue? destination;
+  final List<LatLngValue> routePoints;
+  final _RoutePickTarget pickTarget;
+  final ValueChanged<LatLngValue> onPointPicked;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final initialCenter = _toLatLng(origin) ??
+        _toLatLng(destination) ??
+        const ll.LatLng(-34.6037, -58.3816);
+    final polylinePoints = routePoints.map(_toLatLng).nonNulls.toList();
+    final markers = <Marker>[
+      if (origin != null)
+        Marker(
+          point: _toLatLng(origin)!,
+          width: 44,
+          height: 44,
+          child: const Icon(Icons.trip_origin, color: Colors.green, size: 32),
+        ),
+      if (destination != null)
+        Marker(
+          point: _toLatLng(destination)!,
+          width: 44,
+          height: 44,
+          child: const Icon(Icons.place, color: Colors.red, size: 34),
+        ),
+    ];
+
     return SizedBox(
-      height: 160,
+      height: 260,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: latLngPoints.first,
-            zoom: 7,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: initialCenter,
+            initialZoom: 5,
+            onTap: (_, point) {
+              onPointPicked(
+                LatLngValue(
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                ),
+              );
+            },
           ),
-          polylines: {
-            Polyline(
-              polylineId: const PolylineId('route'),
-              points: latLngPoints,
-              width: 5,
-              color: Theme.of(context).colorScheme.primary,
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.rentabilidad_flete.app',
             ),
-          },
-          markers: {
-            Marker(
-              markerId: const MarkerId('origin'),
-              position: latLngPoints.first,
+            if (polylinePoints.isNotEmpty)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: polylinePoints,
+                    strokeWidth: 5,
+                    color: colorScheme.primary,
+                  ),
+                ],
+              ),
+            MarkerLayer(markers: markers),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    child: Text(
+                      '(c) OpenStreetMap',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            Marker(
-              markerId: const MarkerId('destination'),
-              position: latLngPoints.last,
+            Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                  ),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Text(
+                      pickTarget == _RoutePickTarget.origin
+                          ? 'Toca el origen'
+                          : 'Toca el destino',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ),
+              ),
             ),
-          },
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
+          ],
         ),
       ),
     );
+  }
+
+  ll.LatLng? _toLatLng(LatLngValue? point) {
+    if (point == null) {
+      return null;
+    }
+    return ll.LatLng(point.latitude, point.longitude);
   }
 }
 

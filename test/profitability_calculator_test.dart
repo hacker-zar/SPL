@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rentabilidad_flete/features/analysis/domain/models/profitability_status.dart';
 import 'package:rentabilidad_flete/features/analysis/domain/services/profitability_calculator.dart';
 import 'package:rentabilidad_flete/features/costs/domain/models/cost_inputs.dart';
+import 'package:rentabilidad_flete/features/route_planning/domain/models/lat_lng_value.dart';
 import 'package:rentabilidad_flete/features/route_planning/domain/models/route_info.dart';
 import 'package:rentabilidad_flete/features/trip_data/domain/models/trip_inputs.dart';
 import 'package:rentabilidad_flete/features/vehicle_profile/domain/models/vehicle_profile.dart';
@@ -13,6 +14,8 @@ void main() {
   const route = RouteInfo(
     originName: 'Rosario',
     destinationName: 'Cordoba',
+    origin: LatLngValue(latitude: -32.9442, longitude: -60.6505),
+    destination: LatLngValue(latitude: -31.4201, longitude: -64.1888),
     distanceKm: 400,
     durationMinutes: 360,
   );

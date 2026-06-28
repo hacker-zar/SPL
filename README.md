@@ -28,7 +28,7 @@ flutter create .
 flutter run \
   --dart-define=SUPABASE_URL=TU_URL \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=TU_PUBLISHABLE_KEY \
-  --dart-define=GOOGLE_MAPS_API_KEY=TU_API_KEY
+  --dart-define=OSRM_BASE_URL=https://router.project-osrm.org
 ```
 
 ## Supabase
@@ -45,12 +45,14 @@ La app usa Supabase Auth. En el MVP intenta crear una sesion anonima para que el
 
 Storage queda preparado con el bucket privado `trip_attachments` para futuros comprobantes, cartas de porte o reportes.
 
-## Google Maps
+## Mapas y rutas
 
-El servicio de rutas usa Google Directions API via HTTP para obtener distancia, duracion y polyline. Para Android/iOS tambien hay que configurar la API key nativa de Google Maps en los archivos de plataforma generados por Flutter.
+La app usa OpenStreetMap para visualizar mapas con `flutter_map` y OSRM para calcular ruta, distancia, duracion y geometria. No requiere cuenta de facturacion ni tarjeta bancaria para mapas.
+
+`OSRM_BASE_URL` permite cambiar el proveedor/servidor de rutas sin tocar la UI ni la logica financiera.
 
 ## Vercel
 
-`vercel.json` usa `scripts/build_web.sh` para construir la version web con Flutter y pasar `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` y `GOOGLE_MAPS_API_KEY` como `dart-define`.
+`vercel.json` usa `scripts/build_web.sh` para construir la version web con Flutter y pasar `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` como `dart-define`.
 
 Ver el flujo completo en `docs/deployment.md`.

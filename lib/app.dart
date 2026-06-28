@@ -10,8 +10,7 @@ import 'features/costs/domain/models/cost_inputs.dart';
 import 'features/history/data/memory_trip_repository.dart';
 import 'features/history/data/supabase_trip_repository.dart';
 import 'features/history/domain/repositories/trip_repository.dart';
-import 'features/route_planning/data/google_maps_route_service.dart';
-import 'features/route_planning/data/manual_route_service.dart';
+import 'features/route_planning/data/osrm_route_service.dart';
 import 'features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
 import 'features/vehicle_profile/data/supabase_vehicle_profile_repository.dart';
 import 'features/vehicle_profile/domain/repositories/vehicle_profile_repository.dart';
@@ -49,14 +48,15 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       tripRepository = MemoryTripRepository();
     }
 
-    const routeApiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
-    final routeService = routeApiKey.isEmpty
-        ? ManualRouteService()
-        : GoogleMapsRouteService(apiKey: routeApiKey);
+    const osrmBaseUrl = String.fromEnvironment(
+      'OSRM_BASE_URL',
+      defaultValue: 'https://router.project-osrm.org',
+    );
+    final routeService = OsrmRouteService(baseUrl: osrmBaseUrl);
 
     controller = TripQuoteController(
-      calculator: ProfitabilityCalculator(
-        marginThresholds: const ProfitabilityThresholds(),
+      calculator: const ProfitabilityCalculator(
+        marginThresholds: ProfitabilityThresholds(),
       ),
       routeService: routeService,
       vehicleProfileRepository: vehicleProfileRepository,

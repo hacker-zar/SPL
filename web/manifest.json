@@ -5,5 +5,5 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#276EF1",
-  "description": "Herramienta rapida para decidir si conviene aceptar un viaje."
+  "description": "Herramienta rapida para decidir si conviene aceptar un viaje con mapas OpenStreetMap."
 }
