@@ -19,6 +19,8 @@ class OsrmRouteService implements RouteService {
   Future<RouteInfo> calculateRoute({
     required LatLngValue origin,
     required LatLngValue destination,
+    String? originName,
+    String? destinationName,
   }) async {
     final coordinates =
         '${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}';
@@ -58,8 +60,12 @@ class OsrmRouteService implements RouteService {
         .toList();
 
     return RouteInfo(
-      originName: _formatPoint(origin),
-      destinationName: _formatPoint(destination),
+      originName: originName?.trim().isNotEmpty == true
+          ? originName!.trim()
+          : _formatPoint(origin),
+      destinationName: destinationName?.trim().isNotEmpty == true
+          ? destinationName!.trim()
+          : _formatPoint(destination),
       origin: origin,
       destination: destination,
       distanceKm: (route['distance'] as num).toDouble() / 1000,

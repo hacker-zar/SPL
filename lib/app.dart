@@ -11,6 +11,7 @@ import 'features/costs/domain/services/toll_estimator.dart';
 import 'features/history/data/memory_trip_repository.dart';
 import 'features/history/data/supabase_trip_repository.dart';
 import 'features/history/domain/repositories/trip_repository.dart';
+import 'features/route_planning/data/nominatim_geocoding_service.dart';
 import 'features/route_planning/data/osrm_route_service.dart';
 import 'features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
 import 'features/vehicle_profile/data/supabase_vehicle_profile_repository.dart';
@@ -54,6 +55,13 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       defaultValue: 'https://router.project-osrm.org',
     );
     final routeService = OsrmRouteService(baseUrl: osrmBaseUrl);
+    const nominatimBaseUrl = String.fromEnvironment(
+      'NOMINATIM_BASE_URL',
+      defaultValue: 'https://nominatim.openstreetmap.org',
+    );
+    final geocodingService = NominatimGeocodingService(
+      baseUrl: nominatimBaseUrl,
+    );
     final tollEstimator = TollEstimator(
       ratePerKm: _doubleEnvironment('TOLL_RATE_PER_KM', 35),
       minimumAmount: _doubleEnvironment('TOLL_MINIMUM', 0),
@@ -65,6 +73,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
         marginThresholds: ProfitabilityThresholds(),
       ),
       routeService: routeService,
+      geocodingService: geocodingService,
       tollEstimator: tollEstimator,
       vehicleProfileRepository: vehicleProfileRepository,
       tripRepository: tripRepository,

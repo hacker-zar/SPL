@@ -7,6 +7,8 @@ class ManualRouteService implements RouteService {
   Future<RouteInfo> calculateRoute({
     required LatLngValue origin,
     required LatLngValue destination,
+    String? originName,
+    String? destinationName,
   }) {
     throw ManualRouteRequiredException(
       'No hay servicio de rutas disponible.',

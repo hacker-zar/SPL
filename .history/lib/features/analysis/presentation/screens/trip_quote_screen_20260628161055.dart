@@ -32,8 +32,6 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   final fuelPriceController = TextEditingController();
   final tollsController = TextEditingController();
   final allowancesController = TextEditingController();
-  final originController = TextEditingController();
-  final destinationController = TextEditingController();
 
   final flatRateFocus = FocusNode();
   final tonsFocus = FocusNode();
@@ -41,8 +39,6 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   final fuelPriceFocus = FocusNode();
   final tollsFocus = FocusNode();
   final allowancesFocus = FocusNode();
-  final originFocus = FocusNode();
-  final destinationFocus = FocusNode();
   _RoutePickTarget routePickTarget = _RoutePickTarget.origin;
 
   TripQuoteController get controller => widget.controller;
@@ -63,22 +59,16 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
     fuelPriceController.dispose();
     tollsController.dispose();
     allowancesController.dispose();
-    originController.dispose();
-    destinationController.dispose();
     flatRateFocus.dispose();
     tonsFocus.dispose();
     pricePerTonFocus.dispose();
     fuelPriceFocus.dispose();
     tollsFocus.dispose();
     allowancesFocus.dispose();
-    originFocus.dispose();
-    destinationFocus.dispose();
     super.dispose();
   }
 
   void _syncControllers() {
-    _setText(originController, originFocus, controller.origin);
-    _setText(destinationController, destinationFocus, controller.destination);
     _setText(flatRateController, flatRateFocus, _textNumber(controller.flatRate));
     _setText(tonsController, tonsFocus, _textNumber(controller.tons));
     _setText(
@@ -127,7 +117,18 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Conviene este viaje?'),
-            actions: _appBarActions(context),
+            actions: [
+              IconButton(
+                tooltip: 'Perfil del vehiculo',
+                icon: const Icon(Icons.local_shipping_outlined),
+                onPressed: _showVehicleProfile,
+              ),
+              IconButton(
+                tooltip: 'Historial',
+                icon: const Icon(Icons.history),
+                onPressed: _showHistory,
+              ),
+            ],
           ),
           body: SafeArea(
             child: ListView(
@@ -142,10 +143,6 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
                 const SizedBox(height: 12),
                 _RouteSection(
                   controller: controller,
-                  originController: originController,
-                  destinationController: destinationController,
-                  originFocus: originFocus,
-                  destinationFocus: destinationFocus,
                   pickTarget: routePickTarget,
                   onPickTargetChanged: (target) {
                     setState(() => routePickTarget = target);
@@ -187,39 +184,6 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         );
       },
     );
-  }
-
-  List<Widget> _appBarActions(BuildContext context) {
-    final showLabels = MediaQuery.sizeOf(context).width >= 430;
-    if (!showLabels) {
-      return [
-        IconButton(
-          tooltip: 'Mi vehiculo',
-          icon: const Icon(Icons.local_shipping_outlined),
-          onPressed: _showVehicleProfile,
-        ),
-        IconButton(
-          tooltip: 'Historial',
-          icon: const Icon(Icons.history),
-          onPressed: _showHistory,
-        ),
-      ];
-    }
-
-    return [
-      TextButton.icon(
-        onPressed: _showVehicleProfile,
-        icon: const Icon(Icons.local_shipping_outlined),
-        label: const Text('Mi vehiculo'),
-      ),
-      const SizedBox(width: 4),
-      TextButton.icon(
-        onPressed: _showHistory,
-        icon: const Icon(Icons.history),
-        label: const Text('Historial'),
-      ),
-      const SizedBox(width: 8),
-    ];
   }
 
   Future<void> _calculateTripAndOpenResults() async {
@@ -351,19 +315,11 @@ class TripResultScreen extends StatelessWidget {
 class _RouteSection extends StatelessWidget {
   const _RouteSection({
     required this.controller,
-    required this.originController,
-    required this.destinationController,
-    required this.originFocus,
-    required this.destinationFocus,
     required this.pickTarget,
     required this.onPickTargetChanged,
   });
 
   final TripQuoteController controller;
-  final TextEditingController originController;
-  final TextEditingController destinationController;
-  final FocusNode originFocus;
-  final FocusNode destinationFocus;
   final _RoutePickTarget pickTarget;
   final ValueChanged<_RoutePickTarget> onPickTargetChanged;
 
@@ -409,15 +365,9 @@ class _RouteSection extends StatelessWidget {
             },
           ),
           const SizedBox(height: 10),
-          _RouteLocationInputs(
-            controller: controller,
-            originController: originController,
-            destinationController: destinationController,
-            originFocus: originFocus,
-            destinationFocus: destinationFocus,
-            onOriginResolved: () {
-              onPickTargetChanged(_RoutePickTarget.destination);
-            },
+          _SelectedRoutePoints(
+            origin: controller.origin,
+            destination: controller.destination,
           ),
           const SizedBox(height: 10),
           SwitchListTile(
@@ -426,10 +376,18 @@ class _RouteSection extends StatelessWidget {
             value: controller.emptyReturn,
             onChanged: controller.setEmptyReturn,
           ),
-          if (controller.isRouteLoading) ...[
-            const SizedBox(height: 4),
-            const LinearProgressIndicator(),
-          ],
+          FilledButton.icon(
+            onPressed:
+                controller.isRouteLoading ? null : controller.calculateRoute,
+            icon: controller.isRouteLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.route),
+            label: const Text('Calcular kilometros'),
+          ),
           if (route != null) ...[
             const SizedBox(height: 10),
             _RouteSummary(
@@ -438,22 +396,6 @@ class _RouteSection extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _InputSpinner extends StatelessWidget {
-  const _InputSpinner();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(14),
-      child: SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(strokeWidth: 2),
       ),
     );
   }
@@ -1148,145 +1090,33 @@ class _ManualCoordinatesFormState extends State<_ManualCoordinatesForm> {
 
 enum _RoutePickTarget { origin, destination }
 
-class _RouteLocationInputs extends StatelessWidget {
-  const _RouteLocationInputs({
-    required this.controller,
-    required this.originController,
-    required this.destinationController,
-    required this.originFocus,
-    required this.destinationFocus,
-    required this.onOriginResolved,
+class _SelectedRoutePoints extends StatelessWidget {
+  const _SelectedRoutePoints({
+    required this.origin,
+    required this.destination,
   });
 
-  final TripQuoteController controller;
-  final TextEditingController originController;
-  final TextEditingController destinationController;
-  final FocusNode originFocus;
-  final FocusNode destinationFocus;
-  final VoidCallback onOriginResolved;
+  final String origin;
+  final String destination;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: _LocationInputCard(
+          child: MetricTile(
             label: 'Origen',
-            hintText: 'Toca el mapa o escribi',
-            icon: Icons.trip_origin,
-            textController: originController,
-            focusNode: originFocus,
-            isLoading: controller.isOriginResolving,
-            onSearch: () {
-              controller.resolveOrigin(originController.text);
-              onOriginResolved();
-            },
-            onSubmitted: (value) {
-              controller.resolveOrigin(value);
-              onOriginResolved();
-            },
+            value: origin.isEmpty ? 'Toca el mapa' : origin,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _LocationInputCard(
+          child: MetricTile(
             label: 'Destino',
-            hintText: 'Toca el mapa o escribi',
-            icon: Icons.place_outlined,
-            textController: destinationController,
-            focusNode: destinationFocus,
-            isLoading: controller.isDestinationResolving,
-            onSearch: () {
-              controller.resolveDestination(destinationController.text);
-            },
-            onSubmitted: controller.resolveDestination,
+            value: destination.isEmpty ? 'Toca el mapa' : destination,
           ),
         ),
       ],
-    );
-  }
-}
-
-class _LocationInputCard extends StatelessWidget {
-  const _LocationInputCard({
-    required this.label,
-    required this.hintText,
-    required this.icon,
-    required this.textController,
-    required this.focusNode,
-    required this.isLoading,
-    required this.onSearch,
-    required this.onSubmitted,
-  });
-
-  final String label;
-  final String hintText;
-  final IconData icon;
-  final TextEditingController textController;
-  final FocusNode focusNode;
-  final bool isLoading;
-  final VoidCallback onSearch;
-  final ValueChanged<String> onSubmitted;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.outline),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.6,
-              ),
-            ),
-            const SizedBox(height: 4),
-            TextField(
-              controller: textController,
-              focusNode: focusNode,
-              minLines: 1,
-              maxLines: 2,
-              textInputAction: TextInputAction.search,
-              onSubmitted: onSubmitted,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: hintText,
-                prefixIcon: Icon(icon, size: 18),
-                suffixIcon: isLoading
-                    ? const _InputSpinner()
-                    : IconButton(
-                        tooltip: 'Buscar $label',
-                        icon: const Icon(Icons.search, size: 18),
-                        onPressed: onSearch,
-                      ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 8,
-                ),
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -5,5 +5,7 @@ abstract class RouteService {
   Future<RouteInfo> calculateRoute({
     required LatLngValue origin,
     required LatLngValue destination,
+    String? originName,
+    String? destinationName,
   });
 }

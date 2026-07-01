@@ -9,6 +9,7 @@ import '../../../history/domain/models/trip_record.dart';
 import '../../../history/domain/repositories/trip_repository.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
 import '../../../route_planning/domain/models/route_info.dart';
+import '../../../route_planning/domain/services/geocoding_service.dart';
 import '../../../route_planning/domain/services/route_service.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../../vehicle_profile/domain/models/vehicle_profile.dart';
@@ -20,6 +21,7 @@ class TripQuoteController extends ChangeNotifier {
   TripQuoteController({
     required this.calculator,
     required this.routeService,
+    required this.geocodingService,
     required this.tollEstimator,
     required this.vehicleProfileRepository,
     required this.tripRepository,
@@ -28,6 +30,7 @@ class TripQuoteController extends ChangeNotifier {
 
   final ProfitabilityCalculator calculator;
   final RouteService routeService;
+  final GeocodingService geocodingService;
   final TollEstimator tollEstimator;
   final VehicleProfileRepository vehicleProfileRepository;
   final TripRepository tripRepository;
@@ -47,6 +50,8 @@ class TripQuoteController extends ChangeNotifier {
   double pricePerTon = 0;
   bool emptyReturn = false;
   bool isRouteLoading = false;
+  bool isOriginResolving = false;
+  bool isDestinationResolving = false;
   bool isSaving = false;
   String? errorMessage;
   RouteInfo? route;
@@ -129,6 +134,8 @@ class TripQuoteController extends ChangeNotifier {
     pricePerTon = 0;
     emptyReturn = false;
     isRouteLoading = false;
+    isOriginResolving = false;
+    isDestinationResolving = false;
     isSaving = false;
     errorMessage = null;
     route = null;
@@ -136,6 +143,20 @@ class TripQuoteController extends ChangeNotifier {
     tollEstimate = null;
     tollsEditedManually = false;
     notifyListeners();
+  }
+
+  Future<void> resolveOrigin(String input) async {
+    await _resolveLocation(
+      input: input,
+      isOrigin: true,
+    );
+  }
+
+  Future<void> resolveDestination(String input) async {
+    await _resolveLocation(
+      input: input,
+      isOrigin: false,
+    );
   }
 
   void load() {
@@ -158,6 +179,7 @@ class TripQuoteController extends ChangeNotifier {
     origin = _formatPoint(point);
     route = null;
     tollEstimate = null;
+    _calculateRouteIfReady();
     notifyListeners();
   }
 
@@ -166,6 +188,7 @@ class TripQuoteController extends ChangeNotifier {
     destination = _formatPoint(point);
     route = null;
     tollEstimate = null;
+    _calculateRouteIfReady();
     notifyListeners();
   }
 
@@ -185,6 +208,8 @@ class TripQuoteController extends ChangeNotifier {
       route = await routeService.calculateRoute(
         origin: origin,
         destination: destination,
+        originName: this.origin,
+        destinationName: this.destination,
       );
       _applyEstimatedTolls(force: !tollsEditedManually || costs.tolls == 0);
     } on Object catch (error) {
@@ -322,6 +347,49 @@ class TripQuoteController extends ChangeNotifier {
 
   String _formatPoint(LatLngValue point) {
     return '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
+  }
+
+  Future<void> _resolveLocation({
+    required String input,
+    required bool isOrigin,
+  }) async {
+    if (isOrigin) {
+      isOriginResolving = true;
+    } else {
+      isDestinationResolving = true;
+    }
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await geocodingService.resolve(input);
+      if (isOrigin) {
+        originPoint = result.point;
+        origin = result.name;
+      } else {
+        destinationPoint = result.point;
+        destination = result.name;
+      }
+      route = null;
+      tollEstimate = null;
+      _calculateRouteIfReady();
+    } on Object catch (error) {
+      errorMessage = error.toString();
+    } finally {
+      if (isOrigin) {
+        isOriginResolving = false;
+      } else {
+        isDestinationResolving = false;
+      }
+      notifyListeners();
+    }
+  }
+
+  void _calculateRouteIfReady() {
+    if (originPoint == null || destinationPoint == null || isRouteLoading) {
+      return;
+    }
+    unawaited(calculateRoute());
   }
 
   @override
