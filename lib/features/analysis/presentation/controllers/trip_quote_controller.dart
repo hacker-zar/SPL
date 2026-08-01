@@ -100,27 +100,68 @@ class TripQuoteController extends ChangeNotifier {
   Future<bool> prepareAnalysis() async {
     if (route == null) {
       await calculateRoute();
-      if (route == null) {
-        return false;
-      }
     }
+    return validateVehicleStep() &&
+        validateRouteStep() &&
+        validateOfferStep() &&
+        analysis != null;
+  }
 
+  bool validateVehicleStep() {
     final profile = vehicleProfile;
     if (profile == null || !profile.isComplete) {
-      errorMessage = 'Carga el perfil del vehiculo antes de calcular.';
-      notifyListeners();
-      return false;
+      return _setValidationError(
+        'Carga consumo, mantenimiento y capacidad del vehículo para continuar.',
+      );
     }
+    return _clearValidationError();
+  }
 
+  bool validateRouteStep() {
+    if (originPoint == null || destinationPoint == null) {
+      return _setValidationError('Selecciona origen y destino para continuar.');
+    }
+    if (isRouteLoading) {
+      return _setValidationError('Esperá a que terminemos de calcular la ruta.');
+    }
+    if (route == null) {
+      return _setValidationError('No se pudo calcular la ruta. Revisá los puntos.');
+    }
+    return _clearValidationError();
+  }
+
+  bool validateOfferStep() {
     if (!tripInputs.isValid) {
-      errorMessage = 'Carga el precio del viaje antes de calcular.';
-      notifyListeners();
-      return false;
+      return _setValidationError('Carga un precio válido para continuar.');
     }
+    if (costs.fuelPricePerLiter < 0 ||
+        costs.tolls < 0 ||
+        costs.allowances < 0) {
+      return _setValidationError('Los costos no pueden ser negativos.');
+    }
+    final profile = vehicleProfile;
+    if (pricingMode == PricingMode.perTon &&
+        profile != null &&
+        tons > profile.capacityTons) {
+      return _setValidationError(
+        'Tu vehículo tiene capacidad para ${profile.capacityTons} toneladas. Ajustá la carga o el vehículo.',
+      );
+    }
+    return _clearValidationError();
+  }
 
-    errorMessage = null;
+  bool _setValidationError(String message) {
+    errorMessage = message;
     notifyListeners();
-    return analysis != null;
+    return false;
+  }
+
+  bool _clearValidationError() {
+    if (errorMessage != null) {
+      errorMessage = null;
+      notifyListeners();
+    }
+    return true;
   }
 
   void resetSimulation() {
