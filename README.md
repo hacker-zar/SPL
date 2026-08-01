@@ -56,3 +56,4 @@ La app usa OpenStreetMap para visualizar mapas con `flutter_map` y OSRM para cal
 `vercel.json` usa `scripts/build_web.sh` para construir la version web con Flutter y pasar `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` como `dart-define`.
 
 Ver el flujo completo en `docs/deployment.md`.
+Hecho Por Joaquín Lima
