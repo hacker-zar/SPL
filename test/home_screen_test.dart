@@ -35,7 +35,7 @@ void main() {
 
     expect(find.text('SPL'), findsOneWidget);
     expect(find.text('Analizar un viaje'), findsOneWidget);
-    expect(find.text('Próximamente'), findsOneWidget);
+    expect(find.text('Comparar viajes'), findsOneWidget);
 
     await tester.tap(find.text('Analizar un viaje'));
     await tester.pumpAndSettle();
@@ -46,6 +46,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sistema de Planeamiento Logístico'), findsOneWidget);
+
+    await tester.tap(find.text('Comparar viajes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Agregar Viaje A'), findsOneWidget);
     controller.dispose();
   });
 }

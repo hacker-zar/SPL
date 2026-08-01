@@ -3,40 +3,39 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
+import '../../../comparison/domain/models/comparison_trip.dart';
 import '../../../history/domain/models/trip_record.dart';
+import '../../../history/presentation/screens/history_screen.dart';
 import '../../domain/models/profitability_status.dart';
+import '../../domain/models/trip_analysis.dart';
 import '../controllers/trip_quote_controller.dart';
 import '../widgets/trip_wizard.dart';
 
 class TripQuoteScreen extends StatefulWidget {
   const TripQuoteScreen({
     required this.controller,
-    this.openHistoryOnStart = false,
+    this.initialStep,
+    this.onComparisonTripReady,
     super.key,
   });
 
   final TripQuoteController controller;
-  final bool openHistoryOnStart;
+  final WizardStep? initialStep;
+  final ValueChanged<ComparisonTrip>? onComparisonTripReady;
 
   @override
   State<TripQuoteScreen> createState() => _TripQuoteScreenState();
 }
 
 class _TripQuoteScreenState extends State<TripQuoteScreen> {
-  WizardStep _step = WizardStep.vehicle;
+  late WizardStep _step;
 
   TripQuoteController get controller => widget.controller;
 
   @override
   void initState() {
     super.initState();
-    if (widget.openHistoryOnStart) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _showHistory();
-        }
-      });
-    }
+    _step = widget.initialStep ?? WizardStep.vehicle;
   }
 
   @override
@@ -75,60 +74,61 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+          onAddToComparison: widget.onComparisonTripReady == null
+              ? null
+              : _completeComparisonTrip,
         ),
       ),
     );
   }
 
-  void _showHistory() {
-    controller.loadHistory();
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => AnimatedBuilder(
-        animation: controller,
-        builder: (context, _) {
-          if (controller.isHistoryLoading) {
-            return const SizedBox(
-              height: 220,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (controller.history.isEmpty) {
-            return const SizedBox(
-              height: 220,
-              child: Center(child: Text('Todavía no hay simulaciones.')),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            itemCount: controller.history.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final trip = controller.history[index];
-              return _HistoryTile(
-                trip: trip,
-                onTap: () {
-                  controller.openTrip(trip);
-                  setState(() => _step = WizardStep.review);
-                  Navigator.of(context).pop();
-                  Navigator.of(this.context).push<void>(
-                    MaterialPageRoute(
-                      builder: (context) => TripResultScreen(
-                        controller: controller,
-                        onNewSimulation: () => setState(
-                          () => _step = WizardStep.vehicle,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
+  void _completeComparisonTrip(ComparisonTrip trip) {
+    widget.onComparisonTripReady?.call(trip);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      controller.resetSimulation();
+      Navigator.of(context).pop();
+    });
+  }
+
+  Future<void> _showHistory() {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => HistoryScreen(
+          controller: controller,
+          onOpenTrip: _openSavedTrip,
+          onDuplicateTrip: _duplicateSavedTrip,
+          onStartTrip: _startNewTrip,
+        ),
       ),
     );
+  }
+
+  Future<void> _openSavedTrip(TripRecord trip) async {
+    controller.openTrip(trip);
+    setState(() => _step = WizardStep.review);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => TripResultScreen(
+          controller: controller,
+          onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _duplicateSavedTrip(TripRecord trip) async {
+    controller.openTrip(trip);
+    setState(() => _step = WizardStep.review);
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _startNewTrip() async {
+    controller.resetSimulation();
+    setState(() => _step = WizardStep.vehicle);
+    Navigator.of(context).pop();
   }
 }
 
@@ -136,11 +136,13 @@ class TripResultScreen extends StatelessWidget {
   const TripResultScreen({
     required this.controller,
     required this.onNewSimulation,
+    this.onAddToComparison,
     super.key,
   });
 
   final TripQuoteController controller;
   final VoidCallback onNewSimulation;
+  final ValueChanged<ComparisonTrip>? onAddToComparison;
 
   @override
   Widget build(BuildContext context) {
@@ -252,14 +254,23 @@ class TripResultScreen extends StatelessWidget {
                   label: const Text('Modificar datos'),
                 ),
                 const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed:
-                      controller.isSaving ? null : controller.saveCurrentTrip,
-                  icon: const Icon(Icons.save_outlined),
-                  label: Text(
-                    controller.isSaving ? 'Guardando...' : 'Guardar simulación',
+                if (onAddToComparison == null)
+                  FilledButton.icon(
+                    onPressed:
+                        controller.isSaving ? null : controller.saveCurrentTrip,
+                    icon: const Icon(Icons.save_outlined),
+                    label: Text(
+                      controller.isSaving
+                          ? 'Guardando...'
+                          : 'Guardar simulación',
+                    ),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: () => _addToComparison(context, analysis),
+                    icon: const Icon(Icons.add_chart_outlined),
+                    label: const Text('Agregar a comparación'),
                   ),
-                ),
                 const SizedBox(height: 8),
                 TextButton.icon(
                   onPressed: () {
@@ -276,6 +287,17 @@ class TripResultScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _addToComparison(BuildContext context, TripAnalysis analysis) {
+    final record = controller.createCurrentTripRecord();
+    if (record == null) {
+      return;
+    }
+    onAddToComparison?.call(
+      ComparisonTrip(label: '', record: record, analysis: analysis),
+    );
+    Navigator.of(context).pop();
   }
 }
 
@@ -358,25 +380,6 @@ class _MetricGrid extends StatelessWidget {
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
       children: children,
-    );
-  }
-}
-
-class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.trip, required this.onTap});
-
-  final TripRecord trip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text('${trip.route.originName} → ${trip.route.destinationName}'),
-      subtitle: Text(
-          '${decimal(trip.route.distanceKm)} km · ${decimal(trip.marginPercent)}%'),
-      trailing: Text(money(trip.netProfit)),
-      onTap: onTap,
     );
   }
 }

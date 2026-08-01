@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
 import '../../../analysis/presentation/screens/trip_quote_screen.dart';
+import '../../../analysis/presentation/widgets/trip_wizard.dart';
+import '../../../comparison/presentation/screens/comparison_screen.dart';
+import '../../../history/domain/models/trip_record.dart';
+import '../../../history/presentation/screens/history_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -32,11 +36,11 @@ class HomeScreen extends StatelessWidget {
                   onTap: () => _openTripFlow(context),
                 ),
                 const SizedBox(height: 14),
-                const _HomeActionCard(
+                _HomeActionCard(
                   icon: Icons.compare_arrows_outlined,
                   title: 'Comparar viajes',
                   description: 'Compará opciones antes de elegir una carga.',
-                  isComingSoon: true,
+                  onTap: () => _openComparison(context),
                 ),
                 const SizedBox(height: 14),
                 _HomeActionCard(
@@ -64,10 +68,44 @@ class HomeScreen extends StatelessWidget {
   Future<void> _openHistory(BuildContext context) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
+        builder: (context) => HistoryScreen(
+          controller: controller,
+          onOpenTrip: (trip) => _openSavedTrip(context, trip),
+          onDuplicateTrip: (trip) => _duplicateTrip(context, trip),
+          onStartTrip: () => _openTripFlow(context),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSavedTrip(BuildContext context, TripRecord trip) async {
+    controller.openTrip(trip);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => TripResultScreen(
+          controller: controller,
+          onNewSimulation: () {},
+        ),
+      ),
+    );
+  }
+
+  Future<void> _duplicateTrip(BuildContext context, TripRecord trip) async {
+    controller.openTrip(trip);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
         builder: (context) => TripQuoteScreen(
           controller: controller,
-          openHistoryOnStart: true,
+          initialStep: WizardStep.review,
         ),
+      ),
+    );
+  }
+
+  Future<void> _openComparison(BuildContext context) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => ComparisonScreen(tripController: controller),
       ),
     );
   }
@@ -124,18 +162,16 @@ class _HomeActionCard extends StatelessWidget {
     required this.title,
     required this.description,
     this.onTap,
-    this.isComingSoon = false,
   });
 
   final IconData icon;
   final String title;
   final String description;
   final VoidCallback? onTap;
-  final bool isComingSoon;
 
   @override
   Widget build(BuildContext context) {
-    final isEnabled = onTap != null && !isComingSoon;
+    final isEnabled = onTap != null;
     return Semantics(
       button: isEnabled,
       enabled: isEnabled,
@@ -178,7 +214,6 @@ class _HomeActionCard extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                           ),
-                          if (isComingSoon) const _ComingSoonBadge(),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -197,31 +232,6 @@ class _HomeActionCard extends StatelessWidget {
                 ],
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ComingSoonBadge extends StatelessWidget {
-  const _ComingSoonBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Text(
-          'Próximamente',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
           ),
         ),
       ),

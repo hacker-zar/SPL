@@ -124,10 +124,12 @@ class TripQuoteController extends ChangeNotifier {
       return _setValidationError('Selecciona origen y destino para continuar.');
     }
     if (isRouteLoading) {
-      return _setValidationError('Esperá a que terminemos de calcular la ruta.');
+      return _setValidationError(
+          'Esperá a que terminemos de calcular la ruta.');
     }
     if (route == null) {
-      return _setValidationError('No se pudo calcular la ruta. Revisá los puntos.');
+      return _setValidationError(
+          'No se pudo calcular la ruta. Revisá los puntos.');
     }
     return _clearValidationError();
   }
@@ -333,11 +335,10 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   Future<void> saveCurrentTrip() async {
-    final currentRoute = route;
-    final currentAnalysis = analysis;
-    final trip = tripInputs;
-    if (currentRoute == null || currentAnalysis == null || !trip.isValid) {
-      errorMessage = 'Completa ruta, precio y perfil del vehiculo antes de guardar.';
+    final record = createCurrentTripRecord();
+    if (record == null) {
+      errorMessage =
+          'Completa ruta, precio y perfil del vehiculo antes de guardar.';
       notifyListeners();
       return;
     }
@@ -345,15 +346,6 @@ class TripQuoteController extends ChangeNotifier {
     isSaving = true;
     errorMessage = null;
     notifyListeners();
-
-    final record = TripRecord.fromAnalysis(
-      id: createId('trip'),
-      route: currentRoute,
-      trip: trip,
-      costs: costs,
-      emptyReturn: emptyReturn,
-      analysis: currentAnalysis,
-    );
 
     try {
       await tripRepository.save(record);
@@ -363,6 +355,23 @@ class TripQuoteController extends ChangeNotifier {
       isSaving = false;
       notifyListeners();
     }
+  }
+
+  TripRecord? createCurrentTripRecord() {
+    final currentRoute = route;
+    final currentAnalysis = analysis;
+    final trip = tripInputs;
+    if (currentRoute == null || currentAnalysis == null || !trip.isValid) {
+      return null;
+    }
+    return TripRecord.fromAnalysis(
+      id: createId('trip'),
+      route: currentRoute,
+      trip: trip,
+      costs: costs,
+      emptyReturn: emptyReturn,
+      analysis: currentAnalysis,
+    );
   }
 
   void openTrip(TripRecord record) {
