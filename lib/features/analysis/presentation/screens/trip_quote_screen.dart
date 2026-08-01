@@ -11,10 +11,12 @@ import '../widgets/trip_wizard.dart';
 class TripQuoteScreen extends StatefulWidget {
   const TripQuoteScreen({
     required this.controller,
+    this.openHistoryOnStart = false,
     super.key,
   });
 
   final TripQuoteController controller;
+  final bool openHistoryOnStart;
 
   @override
   State<TripQuoteScreen> createState() => _TripQuoteScreenState();
@@ -24,6 +26,18 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   WizardStep _step = WizardStep.vehicle;
 
   TripQuoteController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openHistoryOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showHistory();
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,12 +81,19 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   }
 
   void _showHistory() {
+    controller.loadHistory();
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (context) => AnimatedBuilder(
         animation: controller,
         builder: (context, _) {
+          if (controller.isHistoryLoading) {
+            return const SizedBox(
+              height: 220,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
           if (controller.history.isEmpty) {
             return const SizedBox(
               height: 220,
@@ -131,7 +152,8 @@ class TripResultScreen extends StatelessWidget {
           return Scaffold(
             appBar: AppBar(title: const Text('Resultado del viaje')),
             body: const Center(
-              child: Text('No hay datos suficientes para mostrar el resultado.'),
+              child:
+                  Text('No hay datos suficientes para mostrar el resultado.'),
             ),
           );
         }
@@ -189,10 +211,18 @@ class TripResultScreen extends StatelessWidget {
                   title: 'Costos y rentabilidad',
                   child: _MetricGrid(
                     children: [
-                      MetricTile(label: 'Combustible', value: money(analysis.fuelCost)),
-                      MetricTile(label: 'Mantenimiento', value: money(analysis.maintenanceCost)),
-                      MetricTile(label: 'Peajes', value: money(controller.costs.tolls)),
-                      MetricTile(label: 'Viáticos', value: money(controller.costs.allowances)),
+                      MetricTile(
+                          label: 'Combustible',
+                          value: money(analysis.fuelCost)),
+                      MetricTile(
+                          label: 'Mantenimiento',
+                          value: money(analysis.maintenanceCost)),
+                      MetricTile(
+                          label: 'Peajes',
+                          value: money(controller.costs.tolls)),
+                      MetricTile(
+                          label: 'Viáticos',
+                          value: money(controller.costs.allowances)),
                       MetricTile(
                         label: 'Ganancia',
                         value: money(analysis.netProfit),
@@ -203,8 +233,11 @@ class TripResultScreen extends StatelessWidget {
                         value: '${decimal(analysis.marginPercent)}%',
                         accentColor: analysis.status.color,
                       ),
-                      MetricTile(label: 'Ingreso/km', value: money(analysis.incomePerKm)),
-                      MetricTile(label: 'Costo/km', value: money(analysis.costPerKm)),
+                      MetricTile(
+                          label: 'Ingreso/km',
+                          value: money(analysis.incomePerKm)),
+                      MetricTile(
+                          label: 'Costo/km', value: money(analysis.costPerKm)),
                       MetricTile(
                         label: 'Mínimo para no perder',
                         value: money(analysis.breakEvenPrice),
@@ -220,7 +253,8 @@ class TripResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 FilledButton.icon(
-                  onPressed: controller.isSaving ? null : controller.saveCurrentTrip,
+                  onPressed:
+                      controller.isSaving ? null : controller.saveCurrentTrip,
                   icon: const Icon(Icons.save_outlined),
                   label: Text(
                     controller.isSaving ? 'Guardando...' : 'Guardar simulación',
@@ -298,7 +332,8 @@ class _ResultCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title.toUpperCase(), style: Theme.of(context).textTheme.titleMedium),
+            Text(title.toUpperCase(),
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             child,
           ],
@@ -338,7 +373,8 @@ class _HistoryTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text('${trip.route.originName} → ${trip.route.destinationName}'),
-      subtitle: Text('${decimal(trip.route.distanceKm)} km · ${decimal(trip.marginPercent)}%'),
+      subtitle: Text(
+          '${decimal(trip.route.distanceKm)} km · ${decimal(trip.marginPercent)}%'),
       trailing: Text(money(trip.netProfit)),
       onTap: onTap,
     );

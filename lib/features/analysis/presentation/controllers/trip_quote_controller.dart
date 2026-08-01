@@ -36,9 +36,11 @@ class TripQuoteController extends ChangeNotifier {
   final TripRepository tripRepository;
 
   final List<StreamSubscription<dynamic>> _subscriptions = [];
+  bool _historyLoaded = false;
 
   VehicleProfile? vehicleProfile;
   List<TripRecord> history = [];
+  bool isHistoryLoading = false;
 
   String origin = '';
   String destination = '';
@@ -207,11 +209,27 @@ class TripQuoteController extends ChangeNotifier {
         notifyListeners();
       }),
     );
+  }
+
+  void loadHistory() {
+    if (_historyLoaded || isHistoryLoading) {
+      return;
+    }
+    isHistoryLoading = true;
+    notifyListeners();
     _subscriptions.add(
-      tripRepository.watchRecent().listen((items) {
-        history = items;
-        notifyListeners();
-      }),
+      tripRepository.watchRecent().listen(
+        (items) {
+          history = items;
+          isHistoryLoading = false;
+          _historyLoaded = true;
+          notifyListeners();
+        },
+        onError: (_) {
+          isHistoryLoading = false;
+          notifyListeners();
+        },
+      ),
     );
   }
 

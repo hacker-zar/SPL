@@ -5,12 +5,12 @@ import 'core/services/supabase_bootstrap.dart';
 import 'core/theme/app_theme.dart';
 import 'features/analysis/domain/services/profitability_calculator.dart';
 import 'features/analysis/presentation/controllers/trip_quote_controller.dart';
-import 'features/analysis/presentation/screens/trip_quote_screen.dart';
 import 'features/costs/domain/models/cost_inputs.dart';
 import 'features/costs/domain/services/toll_estimator.dart';
 import 'features/history/data/memory_trip_repository.dart';
 import 'features/history/data/supabase_trip_repository.dart';
 import 'features/history/domain/repositories/trip_repository.dart';
+import 'features/home/presentation/screens/home_screen.dart';
 import 'features/route_planning/data/nominatim_geocoding_service.dart';
 import 'features/route_planning/data/osrm_route_service.dart';
 import 'features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
@@ -25,11 +25,23 @@ class TripDecisionApp extends StatefulWidget {
 }
 
 class _TripDecisionAppState extends State<TripDecisionApp> {
-  late final TripQuoteController controller;
+  TripQuoteController? controller;
 
   @override
   void initState() {
     super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await SupabaseBootstrap.initialize();
+    if (!mounted) {
+      return;
+    }
+    setState(() => controller = _createController());
+  }
+
+  TripQuoteController _createController() {
     final supabaseClient =
         SupabaseBootstrap.isInitialized ? Supabase.instance.client : null;
     final currentUserId = supabaseClient?.auth.currentUser?.id;
@@ -68,7 +80,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       roundTo: _doubleEnvironment('TOLL_ROUND_TO', 100),
     );
 
-    controller = TripQuoteController(
+    return TripQuoteController(
       calculator: const ProfitabilityCalculator(
         marginThresholds: ProfitabilityThresholds(),
       ),
@@ -83,7 +95,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
 
   @override
   void dispose() {
-    controller.dispose();
+    controller?.dispose();
     super.dispose();
   }
 
@@ -93,7 +105,26 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       title: 'Conviene este viaje?',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
-      home: TripQuoteScreen(controller: controller),
+      home: controller == null
+          ? const _StartupScreen()
+          : HomeScreen(controller: controller!),
+    );
+  }
+}
+
+class _StartupScreen extends StatelessWidget {
+  const _StartupScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 3),
+        ),
+      ),
     );
   }
 }

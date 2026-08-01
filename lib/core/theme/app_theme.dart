@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   AppColors._();
@@ -40,31 +39,30 @@ class AppTheme {
       outlineVariant: AppColors.outline,
     );
 
-    final displayFont = GoogleFonts.oswaldTextTheme();
-    final bodyFont = GoogleFonts.interTextTheme();
-    final textTheme = bodyFont.copyWith(
-      headlineSmall: displayFont.headlineSmall?.copyWith(
+    final baseTextTheme = ThemeData.dark().textTheme;
+    final textTheme = baseTextTheme.copyWith(
+      headlineSmall: baseTextTheme.headlineSmall?.copyWith(
         color: AppColors.textPrimary,
         letterSpacing: 0.2,
       ),
-      titleLarge: displayFont.titleLarge?.copyWith(
+      titleLarge: baseTextTheme.titleLarge?.copyWith(
         color: AppColors.textPrimary,
         fontWeight: FontWeight.w600,
       ),
-      titleMedium: bodyFont.titleMedium?.copyWith(
+      titleMedium: baseTextTheme.titleMedium?.copyWith(
         color: AppColors.textPrimary,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.4,
       ),
-      labelLarge: bodyFont.labelLarge?.copyWith(
+      labelLarge: baseTextTheme.labelLarge?.copyWith(
         color: AppColors.textPrimary,
       ),
-      labelMedium: bodyFont.labelMedium?.copyWith(
+      labelMedium: baseTextTheme.labelMedium?.copyWith(
         color: AppColors.textSecondary,
         letterSpacing: 0.3,
       ),
-      bodyLarge: bodyFont.bodyLarge?.copyWith(color: AppColors.textPrimary),
-      bodyMedium: bodyFont.bodyMedium?.copyWith(color: AppColors.textPrimary),
+      bodyLarge: baseTextTheme.bodyLarge?.copyWith(color: AppColors.textPrimary),
+      bodyMedium: baseTextTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
     ).apply(
       bodyColor: AppColors.textPrimary,
       displayColor: AppColors.textPrimary,
@@ -81,7 +79,7 @@ class AppTheme {
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: displayFont.titleLarge?.copyWith(
+        titleTextStyle: textTheme.titleLarge?.copyWith(
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,

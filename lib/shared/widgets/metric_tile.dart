@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_theme.dart';
 
@@ -50,10 +49,11 @@ class MetricTile extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.jetBrainsMono(
+              style: TextStyle(
                 color: color,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
+                fontFamily: 'monospace',
               ),
             ),
           ],
