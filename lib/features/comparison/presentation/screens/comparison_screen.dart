@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
 import '../../../analysis/presentation/screens/trip_quote_screen.dart';
+import '../../../history/domain/models/trip_record.dart';
 import '../../domain/models/comparison_trip.dart';
 import '../controllers/comparison_controller.dart';
 
@@ -62,10 +64,23 @@ class _ComparisonScreenState extends State<ComparisonScreen> {
                   const SizedBox(height: 12),
                 ],
                 if (trips.length < comparisonController.maxTrips)
-                  OutlinedButton.icon(
-                    onPressed: _addTrip,
-                    icon: const Icon(Icons.add_road_outlined),
-                    label: Text('Agregar ${comparisonController.nextLabel}'),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _addTrip,
+                        icon: const Icon(Icons.add_road_outlined),
+                        label: Text(
+                          'Agregar ${comparisonController.nextLabel}',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _addFromHistory,
+                        icon: const Icon(Icons.history_outlined),
+                        label: const Text('Elegir del historial'),
+                      ),
+                    ],
                   ),
                 if (comparisonController.canCompare) ...[
                   const SizedBox(height: 20),
@@ -105,6 +120,35 @@ class _ComparisonScreenState extends State<ComparisonScreen> {
           comparisonController: comparisonController,
         ),
       ),
+    );
+  }
+
+  Future<void> _addFromHistory() async {
+    widget.tripController.loadHistory();
+    final selected = await showModalBottomSheet<TripRecord>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _HistoryTripPicker(
+        tripController: widget.tripController,
+        addedTripIds:
+            comparisonController.trips.map((trip) => trip.record.id).toSet(),
+      ),
+    );
+    if (!mounted || selected == null) {
+      return;
+    }
+
+    final analysis = widget.tripController.analysisForRecord(selected);
+    if (analysis == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Configurá tu camión para comparar este viaje.'),
+        ),
+      );
+      return;
+    }
+    comparisonController.add(
+      ComparisonTrip(label: '', record: selected, analysis: analysis),
     );
   }
 }
@@ -191,6 +235,87 @@ class _TripSelectionCard extends StatelessWidget {
           icon: const Icon(Icons.close),
           onPressed: onRemove,
         ),
+      ),
+    );
+  }
+}
+
+class _HistoryTripPicker extends StatelessWidget {
+  const _HistoryTripPicker({
+    required this.tripController,
+    required this.addedTripIds,
+  });
+
+  final TripQuoteController tripController;
+  final Set<String> addedTripIds;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.68,
+      child: AnimatedBuilder(
+        animation: tripController,
+        builder: (context, _) {
+          if (tripController.isHistoryLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final records = tripController.history;
+          if (records.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Todavía no hay simulaciones guardadas para comparar.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Elegí un viaje guardado',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  itemCount: records.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final record = records[index];
+                    final alreadyAdded = addedTripIds.contains(record.id);
+                    return Card(
+                      child: ListTile(
+                        enabled: !alreadyAdded,
+                        leading: const Icon(Icons.route_outlined),
+                        title: Text(
+                          '${record.route.originName} → ${record.route.destinationName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '${DateFormat('dd/MM/yyyy').format(record.createdAt)} · ${decimal(record.route.distanceKm)} km\n${money(record.netProfit)} de ganancia',
+                        ),
+                        isThreeLine: true,
+                        trailing: alreadyAdded
+                            ? const Text('Agregado')
+                            : const Icon(Icons.add_circle_outline),
+                        onTap: alreadyAdded
+                            ? null
+                            : () => Navigator.of(context).pop(record),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

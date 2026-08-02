@@ -177,6 +177,24 @@ class TripResultScreen extends StatelessWidget {
                 _DecisionHeader(status: analysis.status),
                 const SizedBox(height: 12),
                 _ResultCard(
+                  title: 'Ganancia estimada',
+                  child: _MetricGrid(
+                    children: [
+                      MetricTile(
+                        label: 'Ganancia',
+                        value: money(analysis.netProfit),
+                        accentColor: analysis.status.color,
+                      ),
+                      MetricTile(
+                        label: 'Margen',
+                        value: '${decimal(analysis.marginPercent)}%',
+                        accentColor: analysis.status.color,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _ResultCard(
                   title: 'Resumen',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -226,16 +244,6 @@ class TripResultScreen extends StatelessWidget {
                           label: 'Viáticos',
                           value: money(controller.costs.allowances)),
                       MetricTile(
-                        label: 'Ganancia',
-                        value: money(analysis.netProfit),
-                        accentColor: analysis.status.color,
-                      ),
-                      MetricTile(
-                        label: 'Margen',
-                        value: '${decimal(analysis.marginPercent)}%',
-                        accentColor: analysis.status.color,
-                      ),
-                      MetricTile(
                           label: 'Ingreso/km',
                           value: money(analysis.incomePerKm)),
                       MetricTile(
@@ -256,8 +264,9 @@ class TripResultScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 if (onAddToComparison == null)
                   FilledButton.icon(
-                    onPressed:
-                        controller.isSaving ? null : controller.saveCurrentTrip,
+                    onPressed: controller.isSaving
+                        ? null
+                        : () => _saveTripAndReturnHome(context),
                     icon: const Icon(Icons.save_outlined),
                     label: Text(
                       controller.isSaving
@@ -298,6 +307,16 @@ class TripResultScreen extends StatelessWidget {
       ComparisonTrip(label: '', record: record, analysis: analysis),
     );
     Navigator.of(context).pop();
+  }
+
+  Future<void> _saveTripAndReturnHome(BuildContext context) async {
+    await controller.saveCurrentTrip();
+    if (!context.mounted || controller.errorMessage != null) {
+      return;
+    }
+
+    controller.resetSimulation();
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 }
 

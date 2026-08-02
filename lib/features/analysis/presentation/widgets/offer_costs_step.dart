@@ -28,12 +28,17 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
   @override
   void initState() {
     super.initState();
-    flatRateController = TextEditingController(text: _numberText(controller.flatRate));
+    flatRateController =
+        TextEditingController(text: _numberText(controller.flatRate));
     tonsController = TextEditingController(text: _numberText(controller.tons));
-    pricePerTonController = TextEditingController(text: _numberText(controller.pricePerTon));
-    fuelPriceController = TextEditingController(text: _numberText(controller.costs.fuelPricePerLiter));
-    tollsController = TextEditingController(text: _numberText(controller.costs.tolls));
-    allowancesController = TextEditingController(text: _numberText(controller.costs.allowances));
+    pricePerTonController =
+        TextEditingController(text: _numberText(controller.pricePerTon));
+    fuelPriceController = TextEditingController(
+        text: _numberText(controller.costs.fuelPricePerLiter));
+    tollsController =
+        TextEditingController(text: _numberText(controller.costs.tolls));
+    allowancesController =
+        TextEditingController(text: _numberText(controller.costs.allowances));
   }
 
   @override
@@ -65,10 +70,12 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
             const SizedBox(height: 12),
             SegmentedButton<PricingMode>(
               segments: PricingMode.values
-                  .map((mode) => ButtonSegment(value: mode, label: Text(mode.label)))
+                  .map((mode) =>
+                      ButtonSegment(value: mode, label: Text(mode.label)))
                   .toList(),
               selected: {controller.pricingMode},
-              onSelectionChanged: (selected) => controller.setPricingMode(selected.first),
+              onSelectionChanged: (selected) =>
+                  controller.setPricingMode(selected.first),
             ),
             const SizedBox(height: 10),
             if (controller.pricingMode == PricingMode.flatRate)
@@ -103,23 +110,34 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
               label: 'Combustible por litro',
               onChanged: controller.setFuelPrice,
             ),
-            const SizedBox(height: 12),
-            MetricTile(label: 'Ingreso estimado', value: money(controller.grossIncome)),
+            if (controller.pricingMode == PricingMode.perTon) ...[
+              const SizedBox(height: 12),
+              MetricTile(
+                label: 'Ingreso estimado',
+                value: money(controller.grossIncome),
+              ),
+            ],
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: () => setState(() => showAdjustments = !showAdjustments),
+              onPressed: () =>
+                  setState(() => showAdjustments = !showAdjustments),
               icon: Icon(showAdjustments ? Icons.expand_less : Icons.tune),
-              label: Text(showAdjustments ? 'Ocultar costos y ajustes' : 'Mostrar costos y ajustes'),
+              label: Text(showAdjustments
+                  ? 'Ocultar costos y ajustes'
+                  : 'Mostrar costos y ajustes'),
             ),
             if (showAdjustments) ...[
               if (tollEstimate != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('Peajes estimados para ${decimal(tollEstimate.distanceKm)} km.'),
+                  child: Text(
+                      'Peajes estimados para ${decimal(tollEstimate.distanceKm)} km.'),
                 ),
               _NumberField(
                 controller: tollsController,
-                label: controller.tollsEditedManually ? 'Peajes editados' : 'Peajes estimados',
+                label: controller.tollsEditedManually
+                    ? 'Peajes editados'
+                    : 'Peajes estimados',
                 onChanged: controller.setTolls,
                 trailing: tollEstimate == null
                     ? null
@@ -128,7 +146,8 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
                         icon: const Icon(Icons.refresh),
                         onPressed: () {
                           controller.useEstimatedTolls();
-                          tollsController.text = _numberText(controller.costs.tolls);
+                          tollsController.text =
+                              _numberText(controller.costs.tolls);
                         },
                       ),
               ),
@@ -170,7 +189,8 @@ class _NumberField extends StatelessWidget {
   }
 }
 
-double _parseNumber(String value) => double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
+double _parseNumber(String value) =>
+    double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
 
 String _numberText(double value) => value == 0
     ? ''

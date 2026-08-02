@@ -32,7 +32,7 @@ class ReviewStep extends StatelessWidget {
           child: profile == null
               ? const Text('Vehículo sin configurar')
               : Text(
-                  '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km · ${decimal(profile.capacityTons)} tn',
+                  '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km · ${decimal(profile.capacityTons)} tn${profile.plate.isEmpty ? '' : ' · Patente: ${profile.plate}'}',
                 ),
         ),
         const SizedBox(height: 10),
@@ -80,7 +80,9 @@ class _ReviewCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(title.toUpperCase(), style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                    child: Text(title.toUpperCase(),
+                        style: Theme.of(context).textTheme.titleMedium)),
                 TextButton.icon(
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit_outlined),

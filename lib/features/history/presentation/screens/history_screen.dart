@@ -327,8 +327,7 @@ class _HistoryTripCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                DateFormat('d MMM yyyy · HH:mm', 'es_AR')
-                    .format(trip.createdAt),
+                DateFormat('dd/MM/yyyy · HH:mm').format(trip.createdAt),
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 14),

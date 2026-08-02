@@ -81,17 +81,40 @@ class TripQuoteController extends ChangeNotifier {
   double get grossIncome => tripInputs.grossIncome;
 
   TripAnalysis? get analysis {
-    final currentRoute = route;
     final profile = vehicleProfile;
-    final trip = tripInputs;
+    final currentRoute = route;
     if (currentRoute == null || profile == null || !profile.isComplete) {
       return null;
     }
-    if (!trip.isValid) {
+    return _calculateAnalysis(
+      route: currentRoute,
+      trip: tripInputs,
+      costs: costs,
+      emptyReturn: emptyReturn,
+    );
+  }
+
+  TripAnalysis? analysisForRecord(TripRecord record) {
+    return _calculateAnalysis(
+      route: record.route,
+      trip: record.trip,
+      costs: record.costs,
+      emptyReturn: record.emptyReturn,
+    );
+  }
+
+  TripAnalysis? _calculateAnalysis({
+    required RouteInfo route,
+    required TripInputs trip,
+    required CostInputs costs,
+    required bool emptyReturn,
+  }) {
+    final profile = vehicleProfile;
+    if (profile == null || !profile.isComplete || !trip.isValid) {
       return null;
     }
     return calculator.calculate(
-      route: currentRoute,
+      route: route,
       trip: trip,
       costs: costs,
       vehicleProfile: profile,

@@ -26,7 +26,8 @@ class VehicleStep extends StatelessWidget {
                   children: [
                     MetricTile(
                       label: 'Consumo',
-                      value: '${decimal(profile!.consumptionLitersPer100Km)} L/100',
+                      value:
+                          '${decimal(profile!.consumptionLitersPer100Km)} L/100',
                     ),
                     MetricTile(
                       label: 'Mantenimiento',
@@ -38,6 +39,8 @@ class VehicleStep extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 10),
+                _PlateSummary(plate: profile.plate),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => _editProfile(context, profile),
@@ -63,7 +66,8 @@ class VehicleStep extends StatelessWidget {
     );
   }
 
-  Future<void> _editProfile(BuildContext context, VehicleProfile? profile) async {
+  Future<void> _editProfile(
+      BuildContext context, VehicleProfile? profile) async {
     final result = await showModalBottomSheet<VehicleProfile>(
       context: context,
       isScrollControlled: true,
@@ -91,15 +95,17 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
   late final TextEditingController capacityController;
   late final TextEditingController plateController;
   String? validationMessage;
-  bool showSecondary = false;
 
   @override
   void initState() {
     super.initState();
     final profile = widget.profile;
-    consumptionController = TextEditingController(text: _numberText(profile?.consumptionLitersPer100Km ?? 0));
-    maintenanceController = TextEditingController(text: _numberText(profile?.maintenanceCostPerKm ?? 0));
-    capacityController = TextEditingController(text: _numberText(profile?.capacityTons ?? 0));
+    consumptionController = TextEditingController(
+        text: _numberText(profile?.consumptionLitersPer100Km ?? 0));
+    maintenanceController = TextEditingController(
+        text: _numberText(profile?.maintenanceCostPerKm ?? 0));
+    capacityController =
+        TextEditingController(text: _numberText(profile?.capacityTons ?? 0));
     plateController = TextEditingController(text: profile?.plate ?? '');
   }
 
@@ -115,7 +121,8 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.viewInsetsOf(context).bottom + 16),
+      padding: EdgeInsets.fromLTRB(
+          16, 0, 16, MediaQuery.viewInsetsOf(context).bottom + 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,7 +138,8 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
           TextField(
             controller: maintenanceController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Mantenimiento por km'),
+            decoration:
+                const InputDecoration(labelText: 'Mantenimiento por km'),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -139,18 +147,16 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(labelText: 'Capacidad tn'),
           ),
-          TextButton(
-            onPressed: () => setState(() => showSecondary = !showSecondary),
-            child: Text(showSecondary ? 'Ocultar dato secundario' : 'Agregar patente (opcional)'),
+          const SizedBox(height: 10),
+          TextField(
+            controller: plateController,
+            textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(labelText: 'Patente (opcional)'),
           ),
-          if (showSecondary)
-            TextField(
-              controller: plateController,
-              decoration: const InputDecoration(labelText: 'Patente opcional'),
-            ),
           if (validationMessage != null) ...[
             const SizedBox(height: 8),
-            Text(validationMessage!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(validationMessage!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
           const SizedBox(height: 14),
           FilledButton(onPressed: _save, child: const Text('Guardar vehículo')),
@@ -165,7 +171,8 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     final capacity = _parseNumber(capacityController.text);
     if (consumption <= 0 || maintenance < 0 || capacity <= 0) {
       setState(() {
-        validationMessage = 'Ingresá consumo y capacidad mayores a cero, y mantenimiento igual o mayor a cero.';
+        validationMessage =
+            'Ingresá consumo y capacidad mayores a cero, y mantenimiento igual o mayor a cero.';
       });
       return;
     }
@@ -194,7 +201,8 @@ class _StepCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title.toUpperCase(), style: Theme.of(context).textTheme.titleMedium),
+            Text(title.toUpperCase(),
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             child,
           ],
@@ -223,7 +231,46 @@ class _MetricGrid extends StatelessWidget {
   }
 }
 
-double _parseNumber(String value) => double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
+class _PlateSummary extends StatelessWidget {
+  const _PlateSummary({required this.plate});
+
+  final String plate;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPlate = plate.isNotEmpty;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.pin_outlined, size: 20),
+            const SizedBox(width: 10),
+            const Text('PATENTE',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Text(
+              hasPlate ? plate : 'Sin cargar',
+              style: TextStyle(
+                color: hasPlate
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+double _parseNumber(String value) =>
+    double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
 
 String _numberText(double value) => value == 0
     ? ''
