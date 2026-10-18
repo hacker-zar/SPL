@@ -211,7 +211,9 @@ class _HistoryControls extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<HistorySort>(
-          initialValue: sort,
+          // Keep compatibility with the Flutter 3.27.4 SDK used by Vercel.
+          // ignore: deprecated_member_use
+          value: sort,
           decoration: const InputDecoration(
             labelText: 'Ordenar por',
             prefixIcon: Icon(Icons.sort),
