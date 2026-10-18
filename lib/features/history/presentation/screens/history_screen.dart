@@ -211,7 +211,7 @@ class _HistoryControls extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<HistorySort>(
-          value: sort,
+          initialValue: sort,
           decoration: const InputDecoration(
             labelText: 'Ordenar por',
             prefixIcon: Icon(Icons.sort),
