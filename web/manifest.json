@@ -1,9 +1,9 @@
 {
-  "name": "Conviene este viaje?",
-  "short_name": "Conviene?",
+  "name": "NetoKM",
+  "short_name": "NetoKM",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0B0E10",
   "theme_color": "#0B0E10",
-  "description": "Herramienta rapida para decidir si conviene aceptar un viaje con mapas OpenStreetMap."
+  "description": "Calculá el costo de un viaje personal o la rentabilidad de un flete."
 }

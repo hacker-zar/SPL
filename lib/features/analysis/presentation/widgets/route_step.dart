@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../controllers/trip_quote_controller.dart';
 
 class RouteStep extends StatefulWidget {
@@ -58,6 +59,7 @@ class _RouteStepState extends State<RouteStep> {
   @override
   Widget build(BuildContext context) {
     final route = controller.effectiveRoute;
+    final personal = controller.purpose == TripPurpose.personal;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -129,16 +131,17 @@ class _RouteStepState extends State<RouteStep> {
             const SizedBox(height: 10),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Vuelvo vacío'),
+              title: Text(personal ? 'Incluir la vuelta' : 'Vuelvo vacío'),
               value: controller.emptyReturn,
               onChanged: controller.setEmptyReturn,
             ),
-            const Padding(
-              padding: EdgeInsets.only(left: 16),
-              child: Text(
-                  'Se estima con el mismo consumo que cargado; el real suele ser menor.'),
-            ),
-            if (controller.tollsEditedManually)
+            if (!personal)
+              const Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: Text(
+                    'Se estima con el mismo consumo que cargado; el real suele ser menor.'),
+              ),
+            if (!personal && controller.tollsEditedManually)
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 4),
                 child: Text('Revisá si el monto de peajes incluye la vuelta.'),

@@ -6,6 +6,7 @@ import '../../../../shared/widgets/metric_tile.dart';
 import '../../../comparison/domain/models/comparison_trip.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../domain/models/profitability_status.dart';
 import '../../domain/models/trip_analysis.dart';
 import '../controllers/trip_quote_controller.dart';
@@ -42,7 +43,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Conviene este viaje?'),
+        title: Text(controller.purpose.label),
         actions: [
           IconButton(
             tooltip: 'Historial',
@@ -159,6 +160,7 @@ class TripResultScreen extends StatelessWidget {
             ),
           );
         }
+        final personal = controller.purpose == TripPurpose.personal;
         final route = controller.effectiveRoute;
         final conclusion = switch (analysis.status) {
           ProfitabilityStatus.profitable =>
@@ -169,106 +171,157 @@ class TripResultScreen extends StatelessWidget {
             'El viaje no cubre los costos estimados. No conviene aceptarlo con estos datos.',
         };
         return Scaffold(
-          appBar: AppBar(title: const Text('Resultado del viaje')),
+          appBar: AppBar(
+            title: Text(personal ? 'Viaje personal' : 'Resultado del viaje'),
+          ),
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
-                _DecisionHeader(status: analysis.status),
-                const SizedBox(height: 12),
-                _ResultCard(
-                  title: 'Ganancia estimada',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _MetricGrid(
-                        children: [
-                          MetricTile(
-                            label: 'Ganancia',
-                            value: money(analysis.netProfit),
-                            accentColor: analysis.status.color,
-                          ),
-                          MetricTile(
-                            label: 'Margen',
-                            value: '${decimal(analysis.marginPercent)}%',
-                            accentColor: analysis.status.color,
-                          ),
-                        ],
-                      ),
-                      if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
-                          0) ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                            'No incluye costos que no cargaste (seguro, amortización, sueldo).'),
-                      ],
-                    ],
+                if (personal) ...[
+                  _ResultCard(
+                    title: 'Costo total del viaje',
+                    child: MetricTile(
+                      label: 'Costo total',
+                      value: money(analysis.totalCosts),
+                      accentColor: AppColors.roadYellow,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _ResultCard(
-                  title: 'Resumen',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _MetricGrid(
-                        children: [
-                          if (route != null)
-                            MetricTile(
-                              label: 'Kilómetros',
-                              value: decimal(route.distanceKm),
-                            ),
-                          if (route != null)
-                            MetricTile(
-                              label: 'Tiempo',
-                              value: '${decimal(route.durationMinutes / 60)} h',
-                            ),
-                          MetricTile(
-                            label: 'Ingreso esperado',
-                            value: money(analysis.grossIncome),
-                          ),
-                          MetricTile(
-                            label: 'Costos totales',
-                            value: money(analysis.totalCosts),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(conclusion),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _ResultCard(
-                  title: 'Costos y rentabilidad',
-                  child: _MetricGrid(
-                    children: [
-                      MetricTile(
-                          label: 'Combustible',
-                          value: money(analysis.fuelCost)),
-                      MetricTile(
+                  const SizedBox(height: 12),
+                  _ResultCard(
+                    title: 'Desglose de costos',
+                    child: _MetricGrid(
+                      children: [
+                        MetricTile(
+                          label:
+                              'Combustible (${decimal(_estimatedFuelLiters())} L)',
+                          value: money(analysis.fuelCost),
+                        ),
+                        MetricTile(
                           label: 'Mantenimiento',
-                          value: money(analysis.maintenanceCost)),
-                      MetricTile(
+                          value: money(analysis.maintenanceCost),
+                        ),
+                        MetricTile(
                           label: 'Peajes',
-                          value: money(controller.costs.tolls)),
-                      MetricTile(
-                          label: 'Viáticos',
-                          value: money(controller.costs.allowances)),
-                      MetricTile(
-                          label: 'Costos fijos por tiempo',
-                          value: money(analysis.timeCost)),
-                      MetricTile(
-                          label: 'Ingreso/km',
-                          value: money(analysis.incomePerKm)),
-                      MetricTile(
-                          label: 'Costo/km', value: money(analysis.costPerKm)),
-                      MetricTile(
-                        label: 'Mínimo para no perder',
-                        value: money(analysis.breakEvenPrice),
-                      ),
-                    ],
+                          value: controller.costs.tolls == 0
+                              ? 'No cargados'
+                              : money(controller.costs.tolls),
+                        ),
+                        MetricTile(
+                          label: 'Otros gastos',
+                          value: money(controller.costs.allowances),
+                        ),
+                        if (controller.travelers > 1)
+                          MetricTile(
+                            label: 'Costo por persona',
+                            value: money(controller.costPerPerson),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Es una estimación. El consumo real cambia según la carga, la velocidad y el tránsito.',
+                  ),
+                ] else ...[
+                  _DecisionHeader(status: analysis.status),
+                  const SizedBox(height: 12),
+                  _ResultCard(
+                    title: 'Ganancia estimada',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _MetricGrid(
+                          children: [
+                            MetricTile(
+                              label: 'Ganancia',
+                              value: money(analysis.netProfit),
+                              accentColor: analysis.status.color,
+                            ),
+                            MetricTile(
+                              label: 'Margen',
+                              value: '${decimal(analysis.marginPercent)}%',
+                              accentColor: analysis.status.color,
+                            ),
+                          ],
+                        ),
+                        if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
+                            0) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                              'No incluye costos que no cargaste (seguro, amortización, sueldo).'),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ResultCard(
+                    title: 'Resumen',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _MetricGrid(
+                          children: [
+                            if (route != null)
+                              MetricTile(
+                                label: 'Kilómetros',
+                                value: decimal(route.distanceKm),
+                              ),
+                            if (route != null)
+                              MetricTile(
+                                label: 'Tiempo',
+                                value:
+                                    '${decimal(route.durationMinutes / 60)} h',
+                              ),
+                            MetricTile(
+                              label: 'Ingreso esperado',
+                              value: money(analysis.grossIncome),
+                            ),
+                            MetricTile(
+                              label: 'Costos totales',
+                              value: money(analysis.totalCosts),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(conclusion),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ResultCard(
+                    title: 'Costos y rentabilidad',
+                    child: _MetricGrid(
+                      children: [
+                        MetricTile(
+                            label: 'Combustible',
+                            value: money(analysis.fuelCost)),
+                        MetricTile(
+                            label: 'Mantenimiento',
+                            value: money(analysis.maintenanceCost)),
+                        MetricTile(
+                            label: 'Peajes',
+                            value: money(controller.costs.tolls)),
+                        MetricTile(
+                            label: 'Viáticos',
+                            value: money(controller.costs.allowances)),
+                        MetricTile(
+                            label: 'Costos fijos por tiempo',
+                            value: money(analysis.timeCost)),
+                        MetricTile(
+                            label: 'Ingreso/km',
+                            value: money(analysis.incomePerKm)),
+                        MetricTile(
+                            label: 'Costo/km',
+                            value: money(analysis.costPerKm)),
+                        MetricTile(
+                          label: 'Mínimo para no perder',
+                          value: money(analysis.breakEvenPrice),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
@@ -276,7 +329,7 @@ class TripResultScreen extends StatelessWidget {
                   label: const Text('Modificar datos'),
                 ),
                 const SizedBox(height: 8),
-                if (onAddToComparison == null)
+                if (onAddToComparison == null || personal)
                   FilledButton.icon(
                     onPressed: controller.isSaving
                         ? null
@@ -310,6 +363,13 @@ class TripResultScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  double _estimatedFuelLiters() {
+    final profile = controller.activeVehicle;
+    final route = controller.effectiveRoute;
+    if (profile == null || route == null) return 0;
+    return route.distanceKm * profile.consumptionLitersPer100Km / 100;
   }
 
   void _addToComparison(BuildContext context, TripAnalysis analysis) {

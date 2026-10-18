@@ -1,8 +1,8 @@
-# Conviene este viaje?
+# NetoKM
 
-MVP Flutter para un chofer o transportista independiente.
+App Flutter para estimar el costo de un viaje personal o decidir si conviene un flete.
 
-La app responde una sola pregunta: **me conviene aceptar este viaje?**
+NetoKM ayuda a entender cuánto cuesta cada viaje y cuánto deja cada flete.
 
 ## Alcance implementado
 

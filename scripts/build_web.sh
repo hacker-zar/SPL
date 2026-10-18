@@ -27,5 +27,6 @@ flutter build web --release \
   --dart-define=OSRM_BASE_URL="${OSRM_BASE_URL:-https://router.project-osrm.org}" \
   --dart-define=NOMINATIM_BASE_URL="${NOMINATIM_BASE_URL:-https://nominatim.openstreetmap.org}" \
   --dart-define=TOLL_RATE_PER_KM="${TOLL_RATE_PER_KM:-0}" \
+  --dart-define=ENABLE_PERSONAL_MODE="${ENABLE_PERSONAL_MODE:-false}" \
   --dart-define=TOLL_MINIMUM="${TOLL_MINIMUM:-0}" \
   --dart-define=TOLL_ROUND_TO="${TOLL_ROUND_TO:-100}"

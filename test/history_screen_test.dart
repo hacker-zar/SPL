@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rentabilidad_flete/core/constants/app_constants.dart';
 import 'package:rentabilidad_flete/core/theme/app_theme.dart';
 import 'package:rentabilidad_flete/features/analysis/domain/services/profitability_calculator.dart';
 import 'package:rentabilidad_flete/features/analysis/presentation/controllers/trip_quote_controller.dart';
@@ -80,6 +81,40 @@ void main() {
     expect(find.text('Hacer mi primera simulación'), findsOneWidget);
     controller.dispose();
   });
+
+  testWidgets('personal history shows total cost without profit or margin',
+      (tester) async {
+    final repository = MemoryTripRepository();
+    await repository.save(_record(
+      id: 'personal',
+      origin: 'Cordoba',
+      destination: 'Carlos Paz',
+      profit: 0,
+      purpose: TripPurpose.personal,
+    ));
+    final controller = _controller(repository)..load();
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.dark(),
+      home: HistoryScreen(
+        controller: controller,
+        onOpenTrip: (_) async {},
+        onDuplicateTrip: (_) async {},
+        onStartTrip: () async {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Personal'),
+      enablePersonalMode ? findsOneWidget : findsNothing,
+    );
+    expect(
+      find.text('COSTO TOTAL'),
+      enablePersonalMode ? findsOneWidget : findsNothing,
+    );
+    expect(find.text('GANANCIA'), findsNothing);
+    expect(find.text('MARGEN'), findsNothing);
+    controller.dispose();
+  });
 }
 
 TripQuoteController _controller(MemoryTripRepository repository) {
@@ -101,6 +136,7 @@ TripRecord _record({
   required String origin,
   required String destination,
   required double profit,
+  TripPurpose purpose = TripPurpose.freight,
 }) {
   return TripRecord(
     id: id,
@@ -113,9 +149,10 @@ TripRecord _record({
       distanceKm: 400,
       durationMinutes: 360,
     ),
-    trip: const TripInputs(
+    trip: TripInputs(
       pricingMode: PricingMode.flatRate,
       flatRate: 800000,
+      purpose: purpose,
     ),
     costs: const CostInputs(fuelPricePerLiter: 1000),
     emptyReturn: false,

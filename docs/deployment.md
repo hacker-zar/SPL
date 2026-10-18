@@ -46,6 +46,10 @@ Variables requeridas:
 - `SUPABASE_PUBLISHABLE_KEY`
 - `OSRM_BASE_URL` opcional, por defecto `https://router.project-osrm.org`
 
+Variable opcional para habilitar el modo **Viaje personal** (se muestra como Beta). Por defecto es `false`, por lo que la aplicación ofrece únicamente **Flete**:
+
+- `ENABLE_PERSONAL_MODE`: `true` para mostrar y habilitar Viaje personal; `false` para mantenerlo oculto.
+
 El script `scripts/build_web.sh` instala Flutter en el entorno de build si no esta disponible y compila Flutter Web.
 
 Variable opcional para fijar la version de Flutter usada en Vercel:
