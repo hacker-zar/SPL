@@ -36,7 +36,9 @@ class ProfitabilityCalculator {
     final maintenanceCost =
         effectiveRoute.distanceKm * vehicleProfile.maintenanceCostPerKm;
     final fixedCosts = costs.tolls + costs.allowances;
-    final totalCosts = fuelCost + maintenanceCost + fixedCosts;
+    final timeCost =
+        vehicleProfile.dailyFixedCost * effectiveRoute.durationDays;
+    final totalCosts = fuelCost + maintenanceCost + fixedCosts + timeCost;
     final netProfit = grossIncome - totalCosts;
     final marginPercent =
         grossIncome == 0 ? 0.0 : (netProfit / grossIncome) * 100;
@@ -50,6 +52,7 @@ class ProfitabilityCalculator {
       fuelCost: fuelCost,
       maintenanceCost: maintenanceCost,
       fixedCosts: fixedCosts,
+      timeCost: timeCost,
       totalCosts: totalCosts,
       netProfit: netProfit,
       marginPercent: marginPercent,

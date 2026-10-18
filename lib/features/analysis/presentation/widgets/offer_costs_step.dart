@@ -127,6 +127,12 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
                   : 'Mostrar costos y ajustes'),
             ),
             if (showAdjustments) ...[
+              if (controller.tollEstimate == null)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                      'Cargá los peajes de tu ruta. No los estimamos automáticamente.'),
+                ),
               if (tollEstimate != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -135,9 +141,8 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
                 ),
               _NumberField(
                 controller: tollsController,
-                label: controller.tollsEditedManually
-                    ? 'Peajes editados'
-                    : 'Peajes estimados',
+                label:
+                    'Peajes (total del viaje, incluida la vuelta si corresponde)',
                 onChanged: controller.setTolls,
                 trailing: tollEstimate == null
                     ? null
@@ -151,6 +156,12 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
                         },
                       ),
               ),
+              if (controller.tollsEditedManually)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child:
+                      Text('Revisá si el monto de peajes incluye la vuelta.'),
+                ),
               const SizedBox(height: 10),
               _NumberField(
                 controller: allowancesController,

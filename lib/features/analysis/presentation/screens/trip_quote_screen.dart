@@ -178,18 +178,29 @@ class TripResultScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _ResultCard(
                   title: 'Ganancia estimada',
-                  child: _MetricGrid(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      MetricTile(
-                        label: 'Ganancia',
-                        value: money(analysis.netProfit),
-                        accentColor: analysis.status.color,
+                      _MetricGrid(
+                        children: [
+                          MetricTile(
+                            label: 'Ganancia',
+                            value: money(analysis.netProfit),
+                            accentColor: analysis.status.color,
+                          ),
+                          MetricTile(
+                            label: 'Margen',
+                            value: '${decimal(analysis.marginPercent)}%',
+                            accentColor: analysis.status.color,
+                          ),
+                        ],
                       ),
-                      MetricTile(
-                        label: 'Margen',
-                        value: '${decimal(analysis.marginPercent)}%',
-                        accentColor: analysis.status.color,
-                      ),
+                      if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
+                          0) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                            'No incluye costos que no cargaste (seguro, amortización, sueldo).'),
+                      ],
                     ],
                   ),
                 ),
@@ -243,6 +254,9 @@ class TripResultScreen extends StatelessWidget {
                       MetricTile(
                           label: 'Viáticos',
                           value: money(controller.costs.allowances)),
+                      MetricTile(
+                          label: 'Costos fijos por tiempo',
+                          value: money(analysis.timeCost)),
                       MetricTile(
                           label: 'Ingreso/km',
                           value: money(analysis.incomePerKm)),

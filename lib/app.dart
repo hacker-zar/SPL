@@ -75,7 +75,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       baseUrl: nominatimBaseUrl,
     );
     final tollEstimator = TollEstimator(
-      ratePerKm: _doubleEnvironment('TOLL_RATE_PER_KM', 35),
+      ratePerKm: _doubleEnvironment('TOLL_RATE_PER_KM', 0),
       minimumAmount: _doubleEnvironment('TOLL_MINIMUM', 0),
       roundTo: _doubleEnvironment('TOLL_ROUND_TO', 100),
     );

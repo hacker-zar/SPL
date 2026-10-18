@@ -9,6 +9,8 @@
 
 ## Local
 
+Los servidores públicos de OSRM y Nominatim son solo para pruebas; para uso real conviene configurar servicios propios o proveedores adecuados. OSRM calcula rutas con el perfil `driving` (autos).
+
 ```bash
 flutter pub get
 flutter run -d chrome \

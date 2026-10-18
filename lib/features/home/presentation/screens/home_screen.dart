@@ -4,7 +4,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
 import '../../../analysis/presentation/screens/trip_quote_screen.dart';
 import '../../../analysis/presentation/widgets/trip_wizard.dart';
-import '../../../comparison/presentation/screens/comparison_screen.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 
@@ -34,13 +33,6 @@ class HomeScreen extends StatelessWidget {
                   description:
                       'Calculá si una oferta realmente conviene considerando costos, combustible, peajes y rentabilidad.',
                   onTap: () => _openTripFlow(context),
-                ),
-                const SizedBox(height: 14),
-                _HomeActionCard(
-                  icon: Icons.compare_arrows_outlined,
-                  title: 'Comparar viajes',
-                  description: 'Compará opciones antes de elegir una carga.',
-                  onTap: () => _openComparison(context),
                 ),
                 const SizedBox(height: 14),
                 _HomeActionCard(
@@ -98,14 +90,6 @@ class HomeScreen extends StatelessWidget {
           controller: controller,
           initialStep: WizardStep.review,
         ),
-      ),
-    );
-  }
-
-  Future<void> _openComparison(BuildContext context) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (context) => ComparisonScreen(tripController: controller),
       ),
     );
   }

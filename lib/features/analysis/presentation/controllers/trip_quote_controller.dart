@@ -353,7 +353,7 @@ class TripQuoteController extends ChangeNotifier {
 
   void setEmptyReturn(bool value) {
     emptyReturn = value;
-    _applyEstimatedTolls(force: !tollsEditedManually);
+    if (!tollsEditedManually) _applyEstimatedTolls(force: true);
     notifyListeners();
   }
 
@@ -409,10 +409,11 @@ class TripQuoteController extends ChangeNotifier {
     pricePerTon = record.trip.pricePerTon;
     costs = record.costs;
     emptyReturn = record.emptyReturn;
-    tollEstimate = tollEstimator.estimate(
+    final estimate = tollEstimator.estimate(
       route: record.route,
       emptyReturn: record.emptyReturn,
     );
+    tollEstimate = estimate.ratePerKm > 0 ? estimate : null;
     tollsEditedManually = true;
     errorMessage = null;
     notifyListeners();
@@ -429,7 +430,8 @@ class TripQuoteController extends ChangeNotifier {
       route: currentRoute,
       emptyReturn: emptyReturn,
     );
-    tollEstimate = estimate;
+    tollEstimate = estimate.ratePerKm > 0 ? estimate : null;
+    if (estimate.ratePerKm <= 0) return;
     if (force) {
       costs = costs.copyWith(tolls: estimate.amount);
       tollsEditedManually = false;

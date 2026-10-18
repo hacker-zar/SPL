@@ -4,12 +4,14 @@ class VehicleProfile {
     required this.maintenanceCostPerKm,
     required this.capacityTons,
     this.plate = '',
+    this.dailyFixedCost = 0,
   });
 
   final double consumptionLitersPer100Km;
   final double maintenanceCostPerKm;
   final double capacityTons;
   final String plate;
+  final double dailyFixedCost;
 
   bool get isComplete =>
       consumptionLitersPer100Km > 0 &&
@@ -21,14 +23,15 @@ class VehicleProfile {
     double? maintenanceCostPerKm,
     double? capacityTons,
     String? plate,
+    double? dailyFixedCost,
   }) {
     return VehicleProfile(
       consumptionLitersPer100Km:
           consumptionLitersPer100Km ?? this.consumptionLitersPer100Km,
-      maintenanceCostPerKm:
-          maintenanceCostPerKm ?? this.maintenanceCostPerKm,
+      maintenanceCostPerKm: maintenanceCostPerKm ?? this.maintenanceCostPerKm,
       capacityTons: capacityTons ?? this.capacityTons,
       plate: plate ?? this.plate,
+      dailyFixedCost: dailyFixedCost ?? this.dailyFixedCost,
     );
   }
 
@@ -38,6 +41,7 @@ class VehicleProfile {
         'maintenanceCostPerKm': maintenanceCostPerKm,
         'capacityTons': capacityTons,
         'plate': plate,
+        'dailyFixedCost': dailyFixedCost,
       };
 
   factory VehicleProfile.fromMap(Map<String, dynamic> map) {
@@ -54,6 +58,9 @@ class VehicleProfile {
           (map['capacityTons'] as num?)?.toDouble() ??
           0,
       plate: map['plate'] as String? ?? '',
+      dailyFixedCost: (map['daily_fixed_cost'] as num?)?.toDouble() ??
+          (map['dailyFixedCost'] as num?)?.toDouble() ??
+          0,
     );
   }
 }

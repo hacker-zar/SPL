@@ -15,6 +15,7 @@ class TripAnalysis {
     required this.breakEvenPrice,
     required this.minimumPricePerTon,
     required this.status,
+    this.timeCost = 0,
   });
 
   final double grossIncome;
@@ -30,4 +31,5 @@ class TripAnalysis {
   final double breakEvenPrice;
   final double minimumPricePerTon;
   final ProfitabilityStatus status;
+  final double timeCost;
 }

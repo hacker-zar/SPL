@@ -94,4 +94,74 @@ void main() {
 
     expect(analysis.status, ProfitabilityStatus.loss);
   });
+
+  test('zero income has zero margin and flat rate zero per ton is safe', () {
+    final analysis = calculator.calculate(
+      route: route,
+      trip: const TripInputs(pricingMode: PricingMode.flatRate, flatRate: 0),
+      costs: const CostInputs(),
+      vehicleProfile: vehicleProfile,
+      emptyReturn: false,
+    );
+    expect(analysis.marginPercent, 0);
+    expect(analysis.minimumPricePerTon, 0);
+  });
+
+  test('marks positive margin below ten percent as low', () {
+    final analysis = calculator.calculate(
+      route: route,
+      trip:
+          const TripInputs(pricingMode: PricingMode.flatRate, flatRate: 170000),
+      costs: const CostInputs(fuelPricePerLiter: 1000),
+      vehicleProfile: vehicleProfile,
+      emptyReturn: false,
+    );
+    expect(analysis.marginPercent, greaterThan(0));
+    expect(analysis.marginPercent, lessThan(10));
+    expect(analysis.status, ProfitabilityStatus.low);
+  });
+
+  test('daily fixed cost uses effective route duration, including return', () {
+    const profile = VehicleProfile(
+      consumptionLitersPer100Km: 30,
+      maintenanceCostPerKm: 100,
+      capacityTons: 28,
+      dailyFixedCost: 12000,
+    );
+    const longRoute = RouteInfo(
+      originName: 'Rosario',
+      destinationName: 'Cordoba',
+      origin: LatLngValue(latitude: -32.9442, longitude: -60.6505),
+      destination: LatLngValue(latitude: -31.4201, longitude: -64.1888),
+      distanceKm: 400,
+      durationMinutes: 1500,
+    );
+    final outbound = calculator.calculate(
+        route: longRoute,
+        trip: trip,
+        costs: const CostInputs(),
+        vehicleProfile: profile,
+        emptyReturn: false);
+    final withReturn = calculator.calculate(
+        route: longRoute,
+        trip: trip,
+        costs: const CostInputs(),
+        vehicleProfile: profile,
+        emptyReturn: true);
+    expect(outbound.timeCost, 12500);
+    expect(withReturn.timeCost, 25000);
+    expect(withReturn.totalCosts, greaterThan(outbound.totalCosts));
+  });
+
+  test('daily fixed cost zero preserves prior cost totals', () {
+    final analysis = calculator.calculate(
+        route: route,
+        trip: trip,
+        costs: const CostInputs(
+            fuelPricePerLiter: 1000, tolls: 50000, allowances: 30000),
+        vehicleProfile: vehicleProfile,
+        emptyReturn: false);
+    expect(analysis.timeCost, 0);
+    expect(analysis.totalCosts, 240000);
+  });
 }

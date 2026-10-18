@@ -32,7 +32,7 @@ class ReviewStep extends StatelessWidget {
           child: profile == null
               ? const Text('Vehículo sin configurar')
               : Text(
-                  '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km · ${decimal(profile.capacityTons)} tn${profile.plate.isEmpty ? '' : ' · Patente: ${profile.plate}'}',
+                  '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km · ${money(profile.dailyFixedCost)}/día · ${decimal(profile.capacityTons)} tn${profile.plate.isEmpty ? '' : ' · Patente: ${profile.plate}'}',
                 ),
         ),
         const SizedBox(height: 10),
@@ -42,7 +42,7 @@ class ReviewStep extends StatelessWidget {
           child: route == null
               ? const Text('Ruta sin calcular')
               : Text(
-                  '${route.originName} → ${route.destinationName}\n${decimal(route.distanceKm)} km · ${decimal(route.durationMinutes / 60)} h${controller.emptyReturn ? ' · Vuelvo vacío' : ''}',
+                  '${route.originName} → ${route.destinationName}\n${decimal(route.distanceKm)} km · ${decimal(route.durationMinutes / 60)} h${controller.emptyReturn ? ' · Vuelvo vacío. Se estima con el mismo consumo que cargado; el real suele ser menor.' : ''}',
                 ),
         ),
         const SizedBox(height: 10),

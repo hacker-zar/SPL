@@ -66,15 +66,20 @@ class _RouteStepState extends State<RouteStep> {
           children: [
             Text('Mi viaje', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
-            const Text('Elegí origen y destino para calcular kilómetros y tiempo.'),
+            const Text(
+                'Elegí origen y destino para calcular kilómetros y tiempo.'),
             const SizedBox(height: 12),
             SegmentedButton<_RoutePickTarget>(
               segments: const [
-                ButtonSegment(value: _RoutePickTarget.origin, label: Text('Origen')),
-                ButtonSegment(value: _RoutePickTarget.destination, label: Text('Destino')),
+                ButtonSegment(
+                    value: _RoutePickTarget.origin, label: Text('Origen')),
+                ButtonSegment(
+                    value: _RoutePickTarget.destination,
+                    label: Text('Destino')),
               ],
               selected: {pickTarget},
-              onSelectionChanged: (selected) => setState(() => pickTarget = selected.first),
+              onSelectionChanged: (selected) =>
+                  setState(() => pickTarget = selected.first),
             ),
             const SizedBox(height: 10),
             _RoutePickerMap(
@@ -102,7 +107,10 @@ class _RouteStepState extends State<RouteStep> {
                     isLoading: controller.isOriginResolving,
                     onSearch: () async {
                       await controller.resolveOrigin(originController.text);
-                      if (mounted) setState(() => pickTarget = _RoutePickTarget.destination);
+                      if (mounted) {
+                        setState(
+                            () => pickTarget = _RoutePickTarget.destination);
+                      }
                     },
                   ),
                 ),
@@ -112,7 +120,8 @@ class _RouteStepState extends State<RouteStep> {
                     label: 'Destino',
                     controller: destinationController,
                     isLoading: controller.isDestinationResolving,
-                    onSearch: () => controller.resolveDestination(destinationController.text),
+                    onSearch: () => controller
+                        .resolveDestination(destinationController.text),
                   ),
                 ),
               ],
@@ -124,6 +133,16 @@ class _RouteStepState extends State<RouteStep> {
               value: controller.emptyReturn,
               onChanged: controller.setEmptyReturn,
             ),
+            const Padding(
+              padding: EdgeInsets.only(left: 16),
+              child: Text(
+                  'Se estima con el mismo consumo que cargado; el real suele ser menor.'),
+            ),
+            if (controller.tollsEditedManually)
+              const Padding(
+                padding: EdgeInsets.only(left: 16, top: 4),
+                child: Text('Revisá si el monto de peajes incluye la vuelta.'),
+              ),
             if (controller.isRouteLoading) ...[
               const LinearProgressIndicator(),
               const SizedBox(height: 8),
@@ -133,9 +152,15 @@ class _RouteStepState extends State<RouteStep> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(child: MetricTile(label: 'Kilómetros', value: decimal(route.distanceKm))),
+                  Expanded(
+                      child: MetricTile(
+                          label: 'Kilómetros',
+                          value: decimal(route.distanceKm))),
                   const SizedBox(width: 8),
-                  Expanded(child: MetricTile(label: 'Tiempo', value: '${decimal(route.durationMinutes / 60)} h')),
+                  Expanded(
+                      child: MetricTile(
+                          label: 'Tiempo',
+                          value: '${decimal(route.durationMinutes / 60)} h')),
                 ],
               ),
             ],
@@ -172,7 +197,10 @@ class _LocationInput extends StatelessWidget {
         suffixIcon: isLoading
             ? const Padding(
                 padding: EdgeInsets.all(14),
-                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
               )
             : IconButton(
                 tooltip: 'Buscar $label',
@@ -204,7 +232,9 @@ class _RoutePickerMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final center = _toLatLng(origin) ?? _toLatLng(destination) ?? const ll.LatLng(-34.6037, -58.3816);
+    final center = _toLatLng(origin) ??
+        _toLatLng(destination) ??
+        const ll.LatLng(-34.6037, -58.3816);
     final points = routePoints.map(_toLatLng).nonNulls.toList();
     return SizedBox(
       height: 260,
@@ -217,7 +247,8 @@ class _RoutePickerMap extends StatelessWidget {
                 initialCenter: center,
                 initialZoom: 5,
                 onTap: (_, point) => onPointPicked(
-                  LatLngValue(latitude: point.latitude, longitude: point.longitude),
+                  LatLngValue(
+                      latitude: point.latitude, longitude: point.longitude),
                 ),
               ),
               children: [
@@ -228,7 +259,10 @@ class _RoutePickerMap extends StatelessWidget {
                 if (points.isNotEmpty)
                   PolylineLayer(
                     polylines: [
-                      Polyline(points: points, strokeWidth: 5, color: AppColors.roadYellow),
+                      Polyline(
+                          points: points,
+                          strokeWidth: 5,
+                          color: AppColors.roadYellow),
                     ],
                   ),
                 MarkerLayer(
@@ -238,14 +272,16 @@ class _RoutePickerMap extends StatelessWidget {
                         point: _toLatLng(origin)!,
                         width: 44,
                         height: 44,
-                        child: const Icon(Icons.trip_origin, color: AppColors.decisionGo, size: 32),
+                        child: const Icon(Icons.trip_origin,
+                            color: AppColors.decisionGo, size: 32),
                       ),
                     if (destination != null)
                       Marker(
                         point: _toLatLng(destination)!,
                         width: 44,
                         height: 44,
-                        child: const Icon(Icons.place, color: AppColors.roadYellow, size: 34),
+                        child: const Icon(Icons.place,
+                            color: AppColors.roadYellow, size: 34),
                       ),
                   ],
                 ),
@@ -263,12 +299,19 @@ class _RoutePickerMap extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: DecoratedBox(
-                  decoration: BoxDecoration(color: AppColors.roadYellow, borderRadius: BorderRadius.circular(4)),
+                  decoration: BoxDecoration(
+                      color: AppColors.roadYellow,
+                      borderRadius: BorderRadius.circular(4)),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     child: Text(
-                      pickTarget == _RoutePickTarget.origin ? 'Tocá el origen' : 'Tocá el destino',
-                      style: const TextStyle(color: AppColors.textOnYellow, fontWeight: FontWeight.w700),
+                      pickTarget == _RoutePickTarget.origin
+                          ? 'Tocá el origen'
+                          : 'Tocá el destino',
+                      style: const TextStyle(
+                          color: AppColors.textOnYellow,
+                          fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -280,7 +323,8 @@ class _RoutePickerMap extends StatelessWidget {
     );
   }
 
-  ll.LatLng? _toLatLng(LatLngValue? value) => value == null ? null : ll.LatLng(value.latitude, value.longitude);
+  ll.LatLng? _toLatLng(LatLngValue? value) =>
+      value == null ? null : ll.LatLng(value.latitude, value.longitude);
 }
 
 enum _RoutePickTarget { origin, destination }

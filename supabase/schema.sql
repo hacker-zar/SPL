@@ -5,11 +5,15 @@ create table if not exists public.vehicle_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   consumption_liters_per_100_km numeric(10, 2) not null check (consumption_liters_per_100_km > 0),
   maintenance_cost_per_km numeric(12, 2) not null default 0 check (maintenance_cost_per_km >= 0),
+  daily_fixed_cost numeric(12, 2) not null default 0 check (daily_fixed_cost >= 0),
   capacity_tons numeric(10, 2) not null check (capacity_tons > 0),
   plate text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.vehicle_profiles
+  add column if not exists daily_fixed_cost numeric(12, 2) not null default 0 check (daily_fixed_cost >= 0);
 
 create table if not exists public.trips (
   id text primary key,

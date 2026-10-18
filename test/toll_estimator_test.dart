@@ -42,4 +42,10 @@ void main() {
 
     expect(estimate.amount, 5000);
   });
+
+  test('zero rate returns zero tolls', () {
+    const estimator = TollEstimator(ratePerKm: 0);
+    final estimate = estimator.estimate(route: route, emptyReturn: false);
+    expect(estimate.amount, 0);
+  });
 }

@@ -94,6 +94,7 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
   late final TextEditingController maintenanceController;
   late final TextEditingController capacityController;
   late final TextEditingController plateController;
+  late final TextEditingController dailyFixedCostController;
   String? validationMessage;
 
   @override
@@ -107,6 +108,8 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     capacityController =
         TextEditingController(text: _numberText(profile?.capacityTons ?? 0));
     plateController = TextEditingController(text: profile?.plate ?? '');
+    dailyFixedCostController =
+        TextEditingController(text: _numberText(profile?.dailyFixedCost ?? 0));
   }
 
   @override
@@ -115,6 +118,7 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     maintenanceController.dispose();
     capacityController.dispose();
     plateController.dispose();
+    dailyFixedCostController.dispose();
     super.dispose();
   }
 
@@ -140,6 +144,22 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration:
                 const InputDecoration(labelText: 'Mantenimiento por km'),
+          ),
+          const Text('Incluye neumáticos, aceite, service y reparaciones.'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+                onPressed: _showMaintenanceHelper,
+                child: const Text('Calcular mantenimiento por km')),
+          ),
+          TextField(
+            controller: dailyFixedCostController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText:
+                  'Costos fijos por día (seguro, amortización, sueldo del chofer)',
+              helperText: 'Se multiplica por los días estimados del viaje.',
+            ),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -169,7 +189,11 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     final consumption = _parseNumber(consumptionController.text);
     final maintenance = _parseNumber(maintenanceController.text);
     final capacity = _parseNumber(capacityController.text);
-    if (consumption <= 0 || maintenance < 0 || capacity <= 0) {
+    final dailyFixedCost = _parseNumber(dailyFixedCostController.text);
+    if (consumption <= 0 ||
+        maintenance < 0 ||
+        capacity <= 0 ||
+        dailyFixedCost < 0) {
       setState(() {
         validationMessage =
             'Ingresá consumo y capacidad mayores a cero, y mantenimiento igual o mayor a cero.';
@@ -182,8 +206,65 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
         maintenanceCostPerKm: maintenance,
         capacityTons: capacity,
         plate: plateController.text.trim(),
+        dailyFixedCost: dailyFixedCost,
       ),
     );
+  }
+
+  Future<void> _showMaintenanceHelper() async {
+    final expenseController = TextEditingController();
+    final kmController = TextEditingController();
+    double? result;
+    bool invalidKm = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Mantenimiento por km'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+                controller: expenseController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Gasto de mantenimiento del último año')),
+            TextField(
+                controller: kmController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Km recorridos en el año')),
+            if (invalidKm)
+              const Text('Los kilómetros deben ser mayores a cero.'),
+            if (result != null)
+              Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text('Resultado: ${money(result!)}/km')),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () {
+                  final expense = _parseNumber(expenseController.text);
+                  final km = _parseNumber(kmController.text);
+                  setDialogState(() {
+                    invalidKm = km <= 0;
+                    result = km > 0 && expense >= 0 ? expense / km : null;
+                  });
+                },
+                child: const Text('Calcular')),
+            if (result != null)
+              FilledButton(
+                  onPressed: () {
+                    maintenanceController.text = _numberText(result!);
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Usar este valor')),
+          ],
+        ),
+      ),
+    );
+    expenseController.dispose();
+    kmController.dispose();
   }
 }
 

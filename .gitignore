@@ -6,6 +6,7 @@
 .cache/
 build/
 coverage/
+.history/
 
 android/.gradle/
 android/local.properties

@@ -44,6 +44,7 @@ class SupabaseVehicleProfileRepository implements VehicleProfileRepository {
       'maintenance_cost_per_km': profile.maintenanceCostPerKm,
       'capacity_tons': profile.capacityTons,
       'plate': profile.plate.isEmpty ? null : profile.plate,
+      'daily_fixed_cost': profile.dailyFixedCost,
     };
   }
 }
