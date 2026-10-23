@@ -320,6 +320,27 @@ class _RoutePickerMap extends StatelessWidget {
                 ),
               ),
             ),
+            Positioned(
+              left: 8,
+              bottom: 8,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xE60B0E10),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  child: Text(
+                    '© colaboradores de OpenStreetMap',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
