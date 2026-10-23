@@ -38,7 +38,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('NetoKM'), findsOneWidget);
+    expect(find.text('Netokm'), findsOneWidget);
     expect(find.text('Flete'), findsOneWidget);
     expect(
       find.text('Viaje personal'),

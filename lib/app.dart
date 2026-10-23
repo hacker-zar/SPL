@@ -112,7 +112,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'NetoKM',
+      title: 'Netokm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
       home: controller == null

@@ -1,8 +1,8 @@
-# NetoKM
+# Netokm
 
-App Flutter para estimar el costo de un viaje personal o decidir si conviene un flete.
+Netokm es una app Flutter para calcular cuánto te queda en cada viaje, con combustible, peajes y mantenimiento en un solo lugar.
 
-NetoKM ayuda a entender cuánto cuesta cada viaje y cuánto deja cada flete.
+Ayuda a entender cuánto cuesta cada viaje y cuánto deja cada flete.
 
 ## Alcance implementado
 

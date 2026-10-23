@@ -139,7 +139,7 @@ class _BrandHeader extends StatelessWidget {
           child: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(
-              'NetoKM',
+              'Netokm',
               style: TextStyle(
                 color: AppColors.textOnYellow,
                 fontSize: 22,
