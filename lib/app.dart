@@ -25,6 +25,10 @@ const String nominatimContactEmail = String.fromEnvironment(
   'NOMINATIM_CONTACT_EMAIL',
   defaultValue: '',
 );
+const String feedbackWhatsAppNumber = String.fromEnvironment(
+  'FEEDBACK_WHATSAPP',
+  defaultValue: '',
+);
 
 class TripDecisionApp extends StatefulWidget {
   const TripDecisionApp({super.key});
@@ -120,6 +124,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
           : HomeScreen(
               controller: controller!,
               personalModeEnabled: enablePersonalMode,
+              feedbackWhatsAppNumber: feedbackWhatsAppNumber,
             ),
     );
   }

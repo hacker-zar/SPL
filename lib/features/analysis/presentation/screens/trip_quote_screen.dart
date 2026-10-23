@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
+import '../../../../shared/widgets/feedback_link.dart';
 import '../../../comparison/domain/models/comparison_trip.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
@@ -16,6 +17,7 @@ class TripQuoteScreen extends StatefulWidget {
   const TripQuoteScreen({
     required this.controller,
     this.personalModeEnabled = false,
+    this.feedbackWhatsAppNumber = '',
     this.initialStep,
     this.onComparisonTripReady,
     super.key,
@@ -23,6 +25,7 @@ class TripQuoteScreen extends StatefulWidget {
 
   final TripQuoteController controller;
   final bool personalModeEnabled;
+  final String feedbackWhatsAppNumber;
   final WizardStep? initialStep;
   final ValueChanged<ComparisonTrip>? onComparisonTripReady;
 
@@ -77,6 +80,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+          feedbackWhatsAppNumber: widget.feedbackWhatsAppNumber,
           onAddToComparison: widget.onComparisonTripReady == null
               ? null
               : _completeComparisonTrip,
@@ -122,6 +126,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+          feedbackWhatsAppNumber: widget.feedbackWhatsAppNumber,
         ),
       ),
     );
@@ -148,6 +153,7 @@ class TripResultScreen extends StatelessWidget {
   const TripResultScreen({
     required this.controller,
     required this.onNewSimulation,
+    this.feedbackWhatsAppNumber = '',
     this.onAddToComparison,
     super.key,
   });
@@ -155,6 +161,7 @@ class TripResultScreen extends StatelessWidget {
   final TripQuoteController controller;
   final VoidCallback onNewSimulation;
   final ValueChanged<ComparisonTrip>? onAddToComparison;
+  final String feedbackWhatsAppNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -370,6 +377,7 @@ class TripResultScreen extends StatelessWidget {
                   icon: const Icon(Icons.add_road_outlined),
                   label: const Text('Nueva simulación'),
                 ),
+                FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
               ],
             ),
           ),

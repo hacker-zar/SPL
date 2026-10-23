@@ -7,16 +7,19 @@ import '../../../analysis/presentation/widgets/trip_wizard.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
+import '../../../../shared/widgets/feedback_link.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     required this.controller,
     this.personalModeEnabled = false,
+    this.feedbackWhatsAppNumber = '',
     super.key,
   });
 
   final TripQuoteController controller;
   final bool personalModeEnabled;
+  final String feedbackWhatsAppNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +56,7 @@ class HomeScreen extends StatelessWidget {
                   description: 'Consultá simulaciones guardadas.',
                   onTap: () => _openHistory(context),
                 ),
+                FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
               ],
             ),
           ),
@@ -72,6 +76,7 @@ class HomeScreen extends StatelessWidget {
         builder: (context) => TripQuoteScreen(
           controller: controller,
           personalModeEnabled: personalModeEnabled,
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
         ),
       ),
     );
@@ -101,6 +106,7 @@ class HomeScreen extends StatelessWidget {
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () {},
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
         ),
       ),
     );
@@ -116,6 +122,7 @@ class HomeScreen extends StatelessWidget {
         builder: (context) => TripQuoteScreen(
           controller: controller,
           personalModeEnabled: personalModeEnabled,
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
           initialStep: WizardStep.review,
         ),
       ),
