@@ -343,6 +343,10 @@ class TripResultScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
+                const Text(
+                  'Estimación orientativa. Depende de los datos que cargaste y de las condiciones reales del viaje.',
+                ),
+                const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.edit_outlined),
