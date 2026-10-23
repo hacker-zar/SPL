@@ -129,7 +129,7 @@ class _WizardActions extends StatelessWidget {
                   icon: Icon(
                     isReview ? Icons.analytics_outlined : Icons.arrow_forward,
                   ),
-                  label: Text(isReview ? 'Calcular viaje' : 'Continuar'),
+                  label: Text(isReview ? 'Ver cuánto te queda' : 'Continuar'),
                 ),
               ),
             ],

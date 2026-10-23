@@ -153,18 +153,9 @@ class _RouteStepState extends State<RouteStep> {
             ],
             if (route != null) ...[
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                      child: MetricTile(
-                          label: 'Kilómetros',
-                          value: decimal(route.distanceKm))),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: MetricTile(
-                          label: 'Tiempo',
-                          value: '${decimal(route.durationMinutes / 60)} h')),
-                ],
+              Text(
+                '${decimal(route.distanceKm)} km en total · ${route.durationDays.ceil()} ${route.durationDays.ceil() == 1 ? 'día' : 'días'} estimados',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
           ],
