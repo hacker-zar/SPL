@@ -4,7 +4,6 @@ import 'package:latlong2/latlong.dart' as ll;
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
-import '../../../../shared/widgets/metric_tile.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../controllers/trip_quote_controller.dart';
