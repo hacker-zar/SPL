@@ -21,6 +21,10 @@ const bool enablePersonalMode = bool.fromEnvironment(
   'ENABLE_PERSONAL_MODE',
   defaultValue: false,
 );
+const String nominatimContactEmail = String.fromEnvironment(
+  'NOMINATIM_CONTACT_EMAIL',
+  defaultValue: '',
+);
 
 class TripDecisionApp extends StatefulWidget {
   const TripDecisionApp({super.key});
@@ -78,6 +82,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
     );
     final geocodingService = NominatimGeocodingService(
       baseUrl: nominatimBaseUrl,
+      contactEmail: nominatimContactEmail,
     );
     final tollEstimator = TollEstimator(
       ratePerKm: _doubleEnvironment('TOLL_RATE_PER_KM', 0),

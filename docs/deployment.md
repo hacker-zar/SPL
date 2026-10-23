@@ -49,6 +49,7 @@ Variables requeridas:
 Variable opcional para habilitar el modo **Viaje personal** (se muestra como Beta). Por defecto es `false`, por lo que la aplicación ofrece únicamente **Flete**:
 
 - `ENABLE_PERSONAL_MODE`: `true` para mostrar y habilitar Viaje personal; `false` para mantenerlo oculto.
+- `NOMINATIM_CONTACT_EMAIL`: correo genérico de contacto de Netokm para identificar la app ante Nominatim. No configures un correo personal. Si queda vacío, no se envía el parámetro `email` y se muestra una advertencia de depuración.
 
 El script `scripts/build_web.sh` instala Flutter en el entorno de build si no esta disponible y compila Flutter Web.
 

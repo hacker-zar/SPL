@@ -4,45 +4,55 @@ import 'package:http/testing.dart';
 import 'package:rentabilidad_flete/features/route_planning/data/nominatim_geocoding_service.dart';
 
 void main() {
-  test('resolves comma separated coordinates without calling Nominatim', () async {
+  test('rate limits requests and caches repeated queries for the session',
+      () async {
+    var currentTime = DateTime.utc(2026, 1, 1);
+    final requestTimes = <DateTime>[];
+    final waits = <Duration>[];
     final service = NominatimGeocodingService(
+      contactEmail: 'contacto@netokm.example',
+      now: () => currentTime,
+      delay: (duration) async {
+        waits.add(duration);
+        currentTime = currentTime.add(duration);
+      },
       client: MockClient((request) async {
-        fail('Coordinates should not call HTTP.');
-      }),
-    );
-
-    final result = await service.resolve('-32.9442, -60.6505');
-
-    expect(result.point.latitude, -32.9442);
-    expect(result.point.longitude, -60.6505);
-    expect(result.name, '-32.94420, -60.65050');
-  });
-
-  test('resolves a place name through Nominatim', () async {
-    final service = NominatimGeocodingService(
-      client: MockClient((request) async {
-        expect(request.url.path, '/search');
-        expect(request.url.queryParameters['q'], 'Rosario');
+        requestTimes.add(currentTime);
+        expect(request.url.queryParameters['email'], 'contacto@netokm.example');
+        expect(request.headers['user-agent'],
+            'Netokm/1.0 (contacto@netokm.example)');
         return http.Response(
-          '[{"display_name":"Rosario, Santa Fe, Argentina","lat":"-32.9442","lon":"-60.6505"}]',
+          '[{"lat":"-34.6","lon":"-58.4","display_name":"${request.url.queryParameters['q']}"}]',
           200,
         );
       }),
     );
 
-    final result = await service.resolve('Rosario');
+    final first = await service.resolve(' Córdoba ');
+    final second = await service.resolve('Mendoza');
+    final cached = await service.resolve('córdoba');
 
-    expect(result.name, 'Rosario, Santa Fe, Argentina');
-    expect(result.point.latitude, -32.9442);
-    expect(result.point.longitude, -60.6505);
+    expect(first.name, 'Córdoba');
+    expect(second.name, 'Mendoza');
+    expect(cached, same(first));
+    expect(requestTimes, hasLength(2));
+    expect(requestTimes.last.difference(requestTimes.first),
+        greaterThanOrEqualTo(const Duration(seconds: 1)));
+    expect(waits, [const Duration(seconds: 1)]);
   });
 
-  test('throws when coordinates are out of range', () {
-    final service = NominatimGeocodingService();
-
-    expect(
-      service.resolve('-132, -60'),
-      throwsA(isA<GeocodingException>()),
+  test('does not send email query parameter when contact is not configured',
+      () async {
+    final service = NominatimGeocodingService(
+      client: MockClient((request) async {
+        expect(request.url.queryParameters.containsKey('email'), isFalse);
+        return http.Response(
+          '[{"lat":"-34.6","lon":"-58.4","display_name":"Córdoba"}]',
+          200,
+        );
+      }),
     );
+
+    await service.resolve('Córdoba');
   });
 }

@@ -208,10 +208,10 @@ class _LocationInput extends StatelessWidget {
             : IconButton(
                 tooltip: 'Buscar $label',
                 icon: const Icon(Icons.search),
-                onPressed: () async => onSearch(),
+                onPressed: isLoading ? null : () async => onSearch(),
               ),
       ),
-      onSubmitted: (_) async => onSearch(),
+      onSubmitted: isLoading ? null : (_) async => onSearch(),
     );
   }
 }
