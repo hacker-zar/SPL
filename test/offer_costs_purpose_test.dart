@@ -12,6 +12,37 @@ import 'package:rentabilidad_flete/features/trip_data/domain/models/trip_inputs.
 import 'package:rentabilidad_flete/features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
 
 void main() {
+  testWidgets('freight tolls are visible and zero toll notice clears on input',
+      (tester) async {
+    final controller = _controller();
+    const tollsLabel =
+        'Peajes (total del viaje, incluida la vuelta si corresponde)';
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => OfferCostsStep(controller: controller),
+          ),
+        ),
+      ),
+    ));
+
+    expect(find.text('Mostrar costos y ajustes'), findsNothing);
+    expect(find.text(tollsLabel), findsOneWidget);
+    expect(find.text('Sin peajes cargados. Si tu ruta tiene, cargalos.'),
+        findsOneWidget);
+
+    final tollField = find.byWidgetPredicate((widget) =>
+        widget is TextField && widget.decoration?.labelText == tollsLabel);
+    await tester.enterText(tollField, '100');
+    await tester.pump();
+
+    expect(find.text('Sin peajes cargados. Si tu ruta tiene, cargalos.'),
+        findsNothing);
+    controller.dispose();
+  });
+
   testWidgets('personal costs hide price and tonnage fields', (tester) async {
     final controller = _controller()..startTrip(TripPurpose.personal);
     await tester.pumpWidget(MaterialApp(

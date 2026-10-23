@@ -301,7 +301,9 @@ class TripResultScreen extends StatelessWidget {
                             value: money(analysis.maintenanceCost)),
                         MetricTile(
                             label: 'Peajes',
-                            value: money(controller.costs.tolls)),
+                            value: controller.costs.tolls == 0
+                                ? 'No cargados'
+                                : money(controller.costs.tolls)),
                         MetricTile(
                             label: 'Viáticos',
                             value: money(controller.costs.allowances)),
