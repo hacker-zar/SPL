@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../domain/models/trip_record.dart';
 
 enum HistoryFilter { all, profitable, loss }
@@ -19,6 +20,7 @@ class HistoryScreen extends StatefulWidget {
     required this.onOpenTrip,
     required this.onDuplicateTrip,
     required this.onStartTrip,
+    this.showPersonalTrips = false,
     super.key,
   });
 
@@ -26,6 +28,7 @@ class HistoryScreen extends StatefulWidget {
   final HistoryTripAction onOpenTrip;
   final HistoryTripAction onDuplicateTrip;
   final HistoryAction onStartTrip;
+  final bool showPersonalTrips;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -107,15 +110,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<TripRecord> get _visibleTrips {
     final query = searchController.text.trim().toLowerCase();
     final trips = controller.history.where((trip) {
+      if (!widget.showPersonalTrips &&
+          trip.trip.purpose == TripPurpose.personal) {
+        return false;
+      }
       final matchesQuery = query.isEmpty ||
           trip.route.originName.toLowerCase().contains(query) ||
           trip.route.destinationName.toLowerCase().contains(query);
+      final isPersonal = trip.trip.purpose == TripPurpose.personal;
       final isProfitable = trip.netProfit >= 0;
-      final matchesFilter = switch (filter) {
-        HistoryFilter.all => true,
-        HistoryFilter.profitable => isProfitable,
-        HistoryFilter.loss => !isProfitable,
-      };
+      final matchesFilter = isPersonal
+          ? filter == HistoryFilter.all
+          : switch (filter) {
+              HistoryFilter.all => true,
+              HistoryFilter.profitable => isProfitable,
+              HistoryFilter.loss => !isProfitable,
+            };
       return matchesQuery && matchesFilter;
     }).toList();
 
@@ -203,6 +213,8 @@ class _HistoryControls extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<HistorySort>(
+          // Keep compatibility with the Flutter 3.27.4 SDK used by Vercel.
+          // ignore: deprecated_member_use
           value: sort,
           decoration: const InputDecoration(
             labelText: 'Ordenar por',
@@ -254,10 +266,15 @@ class _HistoryTripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPersonal = trip.trip.purpose == TripPurpose.personal;
     final isProfitable = trip.netProfit >= 0;
     final statusColor =
         isProfitable ? AppColors.decisionGo : AppColors.decisionStop;
-    final statusLabel = isProfitable ? 'Conviene' : 'No conviene';
+    final statusLabel = isPersonal
+        ? 'Personal'
+        : isProfitable
+            ? 'Conviene'
+            : 'No conviene';
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -335,19 +352,29 @@ class _HistoryTripCard extends StatelessWidget {
                 spacing: 16,
                 runSpacing: 10,
                 children: [
-                  _QuickMetric('Ganancia', money(trip.netProfit), statusColor),
-                  _QuickMetric(
-                    'Margen',
-                    '${decimal(trip.marginPercent)}%',
-                    AppColors.textPrimary,
-                  ),
+                  if (isPersonal)
+                    _QuickMetric(
+                      'Costo total',
+                      money(trip.totalCosts),
+                      AppColors.roadYellow,
+                    )
+                  else ...[
+                    _QuickMetric(
+                        'Ganancia', money(trip.netProfit), statusColor),
+                    _QuickMetric(
+                      'Margen',
+                      '${decimal(trip.marginPercent)}%',
+                      AppColors.textPrimary,
+                    ),
+                  ],
                   _QuickMetric(
                     'Distancia',
                     '${decimal(_effectiveDistance(trip))} km',
                     AppColors.textPrimary,
                   ),
-                  _QuickMetric(
-                      'Precio', money(trip.income), AppColors.textPrimary),
+                  if (!isPersonal)
+                    _QuickMetric(
+                        'Precio', money(trip.income), AppColors.textPrimary),
                 ],
               ),
             ],

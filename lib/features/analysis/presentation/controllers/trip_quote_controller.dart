@@ -39,6 +39,9 @@ class TripQuoteController extends ChangeNotifier {
   bool _historyLoaded = false;
 
   VehicleProfile? vehicleProfile;
+  VehicleProfile? personalVehicle;
+  TripPurpose purpose = TripPurpose.freight;
+  int travelers = 1;
   List<TripRecord> history = [];
   bool isHistoryLoading = false;
 
@@ -61,6 +64,12 @@ class TripQuoteController extends ChangeNotifier {
   TollEstimate? tollEstimate;
   bool tollsEditedManually = false;
 
+  VehicleProfile? get activeVehicle =>
+      purpose == TripPurpose.personal ? personalVehicle : vehicleProfile;
+
+  double get costPerPerson =>
+      (analysis?.totalCosts ?? 0) / (travelers < 1 ? 1 : travelers);
+
   RouteInfo? get effectiveRoute {
     final currentRoute = route;
     if (currentRoute == null) {
@@ -75,15 +84,18 @@ class TripQuoteController extends ChangeNotifier {
       flatRate: flatRate,
       tons: tons,
       pricePerTon: pricePerTon,
+      purpose: purpose,
     );
   }
 
   double get grossIncome => tripInputs.grossIncome;
 
   TripAnalysis? get analysis {
-    final profile = vehicleProfile;
+    final profile = activeVehicle;
     final currentRoute = route;
-    if (currentRoute == null || profile == null || !profile.isComplete) {
+    if (currentRoute == null ||
+        profile == null ||
+        !profile.isCompleteFor(purpose)) {
       return null;
     }
     return _calculateAnalysis(
@@ -109,15 +121,20 @@ class TripQuoteController extends ChangeNotifier {
     required CostInputs costs,
     required bool emptyReturn,
   }) {
-    final profile = vehicleProfile;
-    if (profile == null || !profile.isComplete || !trip.isValid) {
+    final profile =
+        trip.purpose == TripPurpose.personal ? personalVehicle : vehicleProfile;
+    if (profile == null ||
+        !profile.isCompleteFor(trip.purpose) ||
+        !trip.isValid) {
       return null;
     }
     return calculator.calculate(
       route: route,
       trip: trip,
       costs: costs,
-      vehicleProfile: profile,
+      vehicleProfile: trip.purpose == TripPurpose.personal
+          ? profile.copyWith(dailyFixedCost: 0)
+          : profile,
       emptyReturn: emptyReturn,
     );
   }
@@ -133,10 +150,12 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   bool validateVehicleStep() {
-    final profile = vehicleProfile;
-    if (profile == null || !profile.isComplete) {
+    final profile = activeVehicle;
+    if (profile == null || !profile.isCompleteFor(purpose)) {
       return _setValidationError(
-        'Carga consumo, mantenimiento y capacidad del vehículo para continuar.',
+        purpose == TripPurpose.personal
+            ? 'Cargá consumo y mantenimiento del vehículo para continuar.'
+            : 'Carga consumo, mantenimiento y capacidad del vehículo para continuar.',
       );
     }
     return _clearValidationError();
@@ -158,7 +177,7 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   bool validateOfferStep() {
-    if (!tripInputs.isValid) {
+    if (purpose == TripPurpose.freight && !tripInputs.isValid) {
       return _setValidationError('Carga un precio válido para continuar.');
     }
     if (costs.fuelPricePerLiter < 0 ||
@@ -166,8 +185,9 @@ class TripQuoteController extends ChangeNotifier {
         costs.allowances < 0) {
       return _setValidationError('Los costos no pueden ser negativos.');
     }
-    final profile = vehicleProfile;
-    if (pricingMode == PricingMode.perTon &&
+    final profile = activeVehicle;
+    if (purpose == TripPurpose.freight &&
+        pricingMode == PricingMode.perTon &&
         profile != null &&
         tons > profile.capacityTons) {
       return _setValidationError(
@@ -200,6 +220,7 @@ class TripQuoteController extends ChangeNotifier {
     flatRate = 0;
     tons = 0;
     pricePerTon = 0;
+    travelers = 1;
     emptyReturn = false;
     isRouteLoading = false;
     isOriginResolving = false;
@@ -210,6 +231,12 @@ class TripQuoteController extends ChangeNotifier {
     costs = const CostInputs();
     tollEstimate = null;
     tollsEditedManually = false;
+    notifyListeners();
+  }
+
+  void startTrip(TripPurpose nextPurpose) {
+    resetSimulation();
+    purpose = nextPurpose;
     notifyListeners();
   }
 
@@ -310,6 +337,16 @@ class TripQuoteController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void savePersonalVehicle(VehicleProfile profile) {
+    personalVehicle = profile;
+    notifyListeners();
+  }
+
+  void setTravelers(int value) {
+    travelers = value < 1 ? 1 : value;
+    notifyListeners();
+  }
+
   void setPricingMode(PricingMode value) {
     pricingMode = value;
     notifyListeners();
@@ -360,8 +397,9 @@ class TripQuoteController extends ChangeNotifier {
   Future<void> saveCurrentTrip() async {
     final record = createCurrentTripRecord();
     if (record == null) {
-      errorMessage =
-          'Completa ruta, precio y perfil del vehiculo antes de guardar.';
+      errorMessage = purpose == TripPurpose.personal
+          ? 'Completa ruta y perfil del vehículo antes de guardar.'
+          : 'Completa ruta, precio y perfil del vehículo antes de guardar.';
       notifyListeners();
       return;
     }
@@ -399,6 +437,7 @@ class TripQuoteController extends ChangeNotifier {
 
   void openTrip(TripRecord record) {
     route = record.route;
+    purpose = record.trip.purpose;
     origin = record.route.originName;
     destination = record.route.destinationName;
     originPoint = record.route.origin;

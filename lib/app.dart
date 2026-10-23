@@ -17,6 +17,19 @@ import 'features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
 import 'features/vehicle_profile/data/supabase_vehicle_profile_repository.dart';
 import 'features/vehicle_profile/domain/repositories/vehicle_profile_repository.dart';
 
+const bool enablePersonalMode = bool.fromEnvironment(
+  'ENABLE_PERSONAL_MODE',
+  defaultValue: false,
+);
+const String nominatimContactEmail = String.fromEnvironment(
+  'NOMINATIM_CONTACT_EMAIL',
+  defaultValue: '',
+);
+const String feedbackWhatsAppNumber = String.fromEnvironment(
+  'FEEDBACK_WHATSAPP',
+  defaultValue: '',
+);
+
 class TripDecisionApp extends StatefulWidget {
   const TripDecisionApp({super.key});
 
@@ -73,6 +86,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
     );
     final geocodingService = NominatimGeocodingService(
       baseUrl: nominatimBaseUrl,
+      contactEmail: nominatimContactEmail,
     );
     final tollEstimator = TollEstimator(
       ratePerKm: _doubleEnvironment('TOLL_RATE_PER_KM', 0),
@@ -102,12 +116,16 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Conviene este viaje?',
+      title: 'Netokm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
       home: controller == null
           ? const _StartupScreen()
-          : HomeScreen(controller: controller!),
+          : HomeScreen(
+              controller: controller!,
+              personalModeEnabled: enablePersonalMode,
+              feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+            ),
     );
   }
 }

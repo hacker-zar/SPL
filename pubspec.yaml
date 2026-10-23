@@ -1,5 +1,5 @@
 name: rentabilidad_flete
-description: MVP mobile app to quote freight trips and decide profitability.
+description: Flutter app to estimate personal trip costs and freight profitability.
 publish_to: "none"
 version: 0.1.0+1
 
@@ -15,6 +15,7 @@ dependencies:
   intl: ^0.20.1
   latlong2: ^0.9.1
   supabase_flutter: 2.15.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -10,18 +10,30 @@ enum PricingMode {
   }
 }
 
+enum TripPurpose {
+  freight,
+  personal;
+
+  String get label => switch (this) {
+        TripPurpose.freight => 'Flete',
+        TripPurpose.personal => 'Viaje personal',
+      };
+}
+
 class TripInputs {
   const TripInputs({
     required this.pricingMode,
     this.flatRate = 0,
     this.tons = 0,
     this.pricePerTon = 0,
+    this.purpose = TripPurpose.freight,
   });
 
   final PricingMode pricingMode;
   final double flatRate;
   final double tons;
   final double pricePerTon;
+  final TripPurpose purpose;
 
   double get grossIncome {
     return switch (pricingMode) {
@@ -31,6 +43,7 @@ class TripInputs {
   }
 
   bool get isValid {
+    if (purpose == TripPurpose.personal) return true;
     return switch (pricingMode) {
       PricingMode.flatRate => flatRate > 0,
       PricingMode.perTon => tons > 0 && pricePerTon > 0,
@@ -42,6 +55,7 @@ class TripInputs {
         'flatRate': flatRate,
         'tons': tons,
         'pricePerTon': pricePerTon,
+        'purpose': purpose.name,
       };
 
   factory TripInputs.fromMap(Map<String, dynamic> map) {
@@ -56,6 +70,9 @@ class TripInputs {
       flatRate: (map['flatRate'] as num?)?.toDouble() ?? 0,
       tons: tons,
       pricePerTon: pricePerTon,
+      purpose: TripPurpose.values.byName(
+        map['purpose'] as String? ?? TripPurpose.freight.name,
+      ),
     );
   }
 }

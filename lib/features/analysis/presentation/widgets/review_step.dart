@@ -17,7 +17,8 @@ class ReviewStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profile = controller.vehicleProfile;
+    final personal = controller.purpose == TripPurpose.personal;
+    final profile = controller.activeVehicle;
     final route = controller.effectiveRoute;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -27,13 +28,13 @@ class ReviewStep extends StatelessWidget {
         const Text('La recomendación se calculará con esta información.'),
         const SizedBox(height: 12),
         _ReviewCard(
-          title: 'Vehículo',
+          title: personal ? 'Vehículo' : 'Camión',
           onEdit: () => onEdit(WizardStep.vehicle),
           child: profile == null
               ? const Text('Vehículo sin configurar')
-              : Text(
-                  '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km · ${money(profile.dailyFixedCost)}/día · ${decimal(profile.capacityTons)} tn${profile.plate.isEmpty ? '' : ' · Patente: ${profile.plate}'}',
-                ),
+              : Text(personal
+                  ? '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km'
+                  : '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km · ${money(profile.dailyFixedCost)}/día · ${decimal(profile.capacityTons)} tn${profile.plate.isEmpty ? '' : ' · Patente: ${profile.plate}'}'),
         ),
         const SizedBox(height: 10),
         _ReviewCard(
@@ -42,16 +43,18 @@ class ReviewStep extends StatelessWidget {
           child: route == null
               ? const Text('Ruta sin calcular')
               : Text(
-                  '${route.originName} → ${route.destinationName}\n${decimal(route.distanceKm)} km · ${decimal(route.durationMinutes / 60)} h${controller.emptyReturn ? ' · Vuelvo vacío. Se estima con el mismo consumo que cargado; el real suele ser menor.' : ''}',
+                  '${route.originName} → ${route.destinationName}\n${decimal(route.distanceKm)} km · ${decimal(route.durationMinutes / 60)} h${controller.emptyReturn ? (personal ? ' · Incluir la vuelta' : ' · Vuelvo vacío. Se estima con el mismo consumo que cargado; el real suele ser menor.') : ''}',
                 ),
         ),
         const SizedBox(height: 10),
         _ReviewCard(
-          title: 'Oferta y costos',
+          title: personal ? 'Costos' : 'Oferta y costos',
           onEdit: () => onEdit(WizardStep.offer),
           child: Text(
-            '${controller.pricingMode == PricingMode.flatRate ? 'Precio del viaje' : 'Ingreso por carga'}: ${money(controller.grossIncome)}\n'
-            'Combustible: ${money(controller.costs.fuelPricePerLiter)}/l · Peajes: ${money(controller.costs.tolls)} · Viáticos: ${money(controller.costs.allowances)}',
+            personal
+                ? 'Combustible: ${money(controller.costs.fuelPricePerLiter)}/l · Peajes: ${money(controller.costs.tolls)} · Otros gastos: ${money(controller.costs.allowances)} · Personas: ${controller.travelers}'
+                : '${controller.pricingMode == PricingMode.flatRate ? 'Precio del viaje' : 'Ingreso por carga'}: ${money(controller.grossIncome)}\n'
+                    'Combustible: ${money(controller.costs.fuelPricePerLiter)}/l · Peajes: ${money(controller.costs.tolls)} · Viáticos: ${money(controller.costs.allowances)}',
           ),
         ),
       ],

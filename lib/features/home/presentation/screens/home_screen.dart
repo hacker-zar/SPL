@@ -6,14 +6,20 @@ import '../../../analysis/presentation/screens/trip_quote_screen.dart';
 import '../../../analysis/presentation/widgets/trip_wizard.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
+import '../../../../shared/widgets/feedback_link.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     required this.controller,
+    this.personalModeEnabled = false,
+    this.feedbackWhatsAppNumber = '',
     super.key,
   });
 
   final TripQuoteController controller;
+  final bool personalModeEnabled;
+  final String feedbackWhatsAppNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +35,20 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 40),
                 _HomeActionCard(
                   icon: Icons.local_shipping_outlined,
-                  title: 'Analizar un viaje',
-                  description:
-                      'Calculá si una oferta realmente conviene considerando costos, combustible, peajes y rentabilidad.',
-                  onTap: () => _openTripFlow(context),
+                  title: 'Flete',
+                  description: 'Calculá si te conviene aceptar un viaje.',
+                  onTap: () => _openTripFlow(context, TripPurpose.freight),
                 ),
+                if (personalModeEnabled) ...[
+                  const SizedBox(height: 14),
+                  _HomeActionCard(
+                    icon: Icons.directions_car_outlined,
+                    title: 'Viaje personal',
+                    description: 'Calculá cuánto vas a gastar en un viaje.',
+                    badge: 'Beta',
+                    onTap: () => _openTripFlow(context, TripPurpose.personal),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 _HomeActionCard(
                   icon: Icons.history,
@@ -41,6 +56,7 @@ class HomeScreen extends StatelessWidget {
                   description: 'Consultá simulaciones guardadas.',
                   onTap: () => _openHistory(context),
                 ),
+                FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
               ],
             ),
           ),
@@ -49,10 +65,19 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openTripFlow(BuildContext context) {
+  Future<void> _openTripFlow(BuildContext context,
+      [TripPurpose purpose = TripPurpose.freight]) {
+    if (purpose == TripPurpose.personal && !personalModeEnabled) {
+      return Future<void>.value();
+    }
+    controller.startTrip(purpose);
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (context) => TripQuoteScreen(controller: controller),
+        builder: (context) => TripQuoteScreen(
+          controller: controller,
+          personalModeEnabled: personalModeEnabled,
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+        ),
       ),
     );
   }
@@ -62,6 +87,7 @@ class HomeScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (context) => HistoryScreen(
           controller: controller,
+          showPersonalTrips: personalModeEnabled,
           onOpenTrip: (trip) => _openSavedTrip(context, trip),
           onDuplicateTrip: (trip) => _duplicateTrip(context, trip),
           onStartTrip: () => _openTripFlow(context),
@@ -71,23 +97,32 @@ class HomeScreen extends StatelessWidget {
   }
 
   Future<void> _openSavedTrip(BuildContext context, TripRecord trip) async {
+    if (!personalModeEnabled && trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () {},
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
         ),
       ),
     );
   }
 
   Future<void> _duplicateTrip(BuildContext context, TripRecord trip) async {
+    if (!personalModeEnabled && trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => TripQuoteScreen(
           controller: controller,
+          personalModeEnabled: personalModeEnabled,
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
           initialStep: WizardStep.review,
         ),
       ),
@@ -111,7 +146,7 @@ class _BrandHeader extends StatelessWidget {
           child: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(
-              'SPL',
+              'Netokm',
               style: TextStyle(
                 color: AppColors.textOnYellow,
                 fontSize: 22,
@@ -123,14 +158,14 @@ class _BrandHeader extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         Text(
-          'Sistema de Planeamiento Logístico',
+          'Calculá cuánto cuesta cada kilómetro.',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
         ),
         const SizedBox(height: 10),
         Text(
-          'Tomá mejores decisiones antes de aceptar un viaje.',
+          'Costos claros para cada viaje.',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -145,12 +180,14 @@ class _HomeActionCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.description,
+    this.badge,
     this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String description;
+  final String? badge;
   final VoidCallback? onTap;
 
   @override
@@ -198,6 +235,31 @@ class _HomeActionCard extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                           ),
+                          if (badge != null) ...[
+                            const SizedBox(width: 8),
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.roadYellowDim,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 4,
+                                ),
+                                child: Text(
+                                  badge!,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: AppColors.roadYellow,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 6),

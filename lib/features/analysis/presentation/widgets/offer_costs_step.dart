@@ -21,7 +21,7 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
   late final TextEditingController fuelPriceController;
   late final TextEditingController tollsController;
   late final TextEditingController allowancesController;
-  bool showAdjustments = false;
+  late final TextEditingController travelersController;
 
   TripQuoteController get controller => widget.controller;
 
@@ -39,6 +39,8 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
         TextEditingController(text: _numberText(controller.costs.tolls));
     allowancesController =
         TextEditingController(text: _numberText(controller.costs.allowances));
+    travelersController =
+        TextEditingController(text: controller.travelers.toString());
   }
 
   @override
@@ -49,42 +51,48 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
     fuelPriceController.dispose();
     tollsController.dispose();
     allowancesController.dispose();
+    travelersController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final personal = controller.purpose == TripPurpose.personal;
     final tollEstimate = controller.tollEstimate;
     final overCapacity = controller.pricingMode == PricingMode.perTon &&
-        controller.vehicleProfile != null &&
-        controller.tons > controller.vehicleProfile!.capacityTons;
+        controller.activeVehicle != null &&
+        controller.tons > controller.activeVehicle!.capacityTons;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Mi oferta', style: Theme.of(context).textTheme.titleMedium),
+            Text(personal ? 'Costos del viaje' : 'Mi oferta',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
-            const Text('Ingresá cuánto te pagan y el costo de combustible.'),
+            Text(personal
+                ? 'Ingresá los gastos estimados de tu viaje.'
+                : 'Ingresá cuánto te pagan y el costo de combustible.'),
             const SizedBox(height: 12),
-            SegmentedButton<PricingMode>(
-              segments: PricingMode.values
-                  .map((mode) =>
-                      ButtonSegment(value: mode, label: Text(mode.label)))
-                  .toList(),
-              selected: {controller.pricingMode},
-              onSelectionChanged: (selected) =>
-                  controller.setPricingMode(selected.first),
-            ),
-            const SizedBox(height: 10),
-            if (controller.pricingMode == PricingMode.flatRate)
+            if (!personal)
+              SegmentedButton<PricingMode>(
+                segments: PricingMode.values
+                    .map((mode) =>
+                        ButtonSegment(value: mode, label: Text(mode.label)))
+                    .toList(),
+                selected: {controller.pricingMode},
+                onSelectionChanged: (selected) =>
+                    controller.setPricingMode(selected.first),
+              ),
+            if (!personal) const SizedBox(height: 10),
+            if (!personal && controller.pricingMode == PricingMode.flatRate)
               _NumberField(
                 controller: flatRateController,
                 label: 'Precio del viaje',
                 onChanged: controller.setFlatRate,
               )
-            else ...[
+            else if (!personal) ...[
               _NumberField(
                 controller: tonsController,
                 label: 'Toneladas',
@@ -100,7 +108,7 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
             if (overCapacity) ...[
               const SizedBox(height: 10),
               Text(
-                'Tu vehículo tiene capacidad para ${decimal(controller.vehicleProfile!.capacityTons)} toneladas. Ajustá la carga o el vehículo.',
+                'Tu vehículo tiene capacidad para ${decimal(controller.activeVehicle!.capacityTons)} toneladas. Ajustá la carga o el vehículo.',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
@@ -110,63 +118,67 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
               label: 'Combustible por litro',
               onChanged: controller.setFuelPrice,
             ),
-            if (controller.pricingMode == PricingMode.perTon) ...[
+            if (!personal && controller.pricingMode == PricingMode.perTon) ...[
               const SizedBox(height: 12),
               MetricTile(
                 label: 'Ingreso estimado',
                 value: money(controller.grossIncome),
               ),
             ],
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () =>
-                  setState(() => showAdjustments = !showAdjustments),
-              icon: Icon(showAdjustments ? Icons.expand_less : Icons.tune),
-              label: Text(showAdjustments
-                  ? 'Ocultar costos y ajustes'
-                  : 'Mostrar costos y ajustes'),
+            const SizedBox(height: 10),
+            _NumberField(
+              controller: tollsController,
+              label:
+                  'Peajes (total del viaje, incluida la vuelta si corresponde)',
+              onChanged: controller.setTolls,
+              trailing: tollEstimate == null
+                  ? null
+                  : IconButton(
+                      tooltip: 'Usar peaje estimado',
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () {
+                        controller.useEstimatedTolls();
+                        tollsController.text =
+                            _numberText(controller.costs.tolls);
+                      },
+                    ),
             ),
-            if (showAdjustments) ...[
-              if (controller.tollEstimate == null)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text(
-                      'Cargá los peajes de tu ruta. No los estimamos automáticamente.'),
-                ),
-              if (tollEstimate != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                      'Peajes estimados para ${decimal(tollEstimate.distanceKm)} km.'),
-                ),
-              _NumberField(
-                controller: tollsController,
-                label:
-                    'Peajes (total del viaje, incluida la vuelta si corresponde)',
-                onChanged: controller.setTolls,
-                trailing: tollEstimate == null
-                    ? null
-                    : IconButton(
-                        tooltip: 'Usar peaje estimado',
-                        icon: const Icon(Icons.refresh),
-                        onPressed: () {
-                          controller.useEstimatedTolls();
-                          tollsController.text =
-                              _numberText(controller.costs.tolls);
-                        },
-                      ),
+            if (controller.costs.tolls == 0)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Sin peajes cargados. Si tu ruta tiene, cargalos.'),
+              )
+            else if (!personal && tollEstimate != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                    'Peajes estimados para ${decimal(tollEstimate.distanceKm)} km.'),
               ),
-              if (controller.tollsEditedManually)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child:
-                      Text('Revisá si el monto de peajes incluye la vuelta.'),
-                ),
+            if (!personal && controller.tollsEditedManually)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Revisá si el monto de peajes incluye la vuelta.'),
+              ),
+            const SizedBox(height: 10),
+            _NumberField(
+              controller: allowancesController,
+              label: personal
+                  ? 'Otros gastos (comida, alojamiento)'
+                  : 'Viáticos',
+              onChanged: controller.setAllowances,
+            ),
+            if (personal) ...[
               const SizedBox(height: 10),
-              _NumberField(
-                controller: allowancesController,
-                label: 'Viáticos',
-                onChanged: controller.setAllowances,
+              TextField(
+                controller: travelersController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Cantidad de personas que comparten los gastos',
+                  helperText: 'Mínimo: 1 persona.',
+                ),
+                onChanged: (value) => controller.setTravelers(
+                  int.tryParse(value) ?? 1,
+                ),
               ),
             ],
           ],

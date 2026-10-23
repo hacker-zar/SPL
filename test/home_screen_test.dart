@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rentabilidad_flete/app.dart';
 import 'package:rentabilidad_flete/core/theme/app_theme.dart';
 import 'package:rentabilidad_flete/features/analysis/domain/services/profitability_calculator.dart';
 import 'package:rentabilidad_flete/features/analysis/presentation/controllers/trip_quote_controller.dart';
@@ -9,6 +10,7 @@ import 'package:rentabilidad_flete/features/history/data/memory_trip_repository.
 import 'package:rentabilidad_flete/features/home/presentation/screens/home_screen.dart';
 import 'package:rentabilidad_flete/features/route_planning/data/manual_route_service.dart';
 import 'package:rentabilidad_flete/features/route_planning/data/nominatim_geocoding_service.dart';
+import 'package:rentabilidad_flete/features/trip_data/domain/models/trip_inputs.dart';
 import 'package:rentabilidad_flete/features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
 
 void main() {
@@ -28,24 +30,44 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark(),
-        home: HomeScreen(controller: controller),
+        home: HomeScreen(
+          controller: controller,
+          personalModeEnabled: enablePersonalMode,
+        ),
       ),
     );
     await tester.pump();
 
-    expect(find.text('SPL'), findsOneWidget);
-    expect(find.text('Analizar un viaje'), findsOneWidget);
+    expect(find.text('Netokm'), findsOneWidget);
+    expect(find.text('Flete'), findsOneWidget);
+    expect(
+      find.text('Viaje personal'),
+      enablePersonalMode ? findsOneWidget : findsNothing,
+    );
+    expect(
+      find.text('Beta'),
+      enablePersonalMode ? findsOneWidget : findsNothing,
+    );
     expect(find.text('Comparar viajes'), findsNothing);
 
-    await tester.tap(find.text('Analizar un viaje'));
+    if (enablePersonalMode) {
+      await tester.tap(find.text('Viaje personal'));
+      await tester.pumpAndSettle();
+
+      expect(controller.purpose, TripPurpose.personal);
+      expect(find.text('Paso 1 de 4 · Vehículo'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('Flete'));
     await tester.pumpAndSettle();
-
-    expect(find.text('Paso 1 de 4 · Vehículo'), findsOneWidget);
-
+    expect(controller.purpose, TripPurpose.freight);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    expect(find.text('Sistema de Planeamiento Logístico'), findsOneWidget);
+    expect(find.text('Calculá cuánto cuesta cada kilómetro.'), findsOneWidget);
 
     controller.dispose();
   });

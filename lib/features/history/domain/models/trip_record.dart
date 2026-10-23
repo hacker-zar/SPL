@@ -43,10 +43,11 @@ class TripRecord {
       trip: trip,
       costs: costs,
       emptyReturn: emptyReturn,
-      income: analysis.grossIncome,
+      income: trip.purpose == TripPurpose.personal ? 0 : analysis.grossIncome,
       totalCosts: analysis.totalCosts,
-      netProfit: analysis.netProfit,
-      marginPercent: analysis.marginPercent,
+      netProfit: trip.purpose == TripPurpose.personal ? 0 : analysis.netProfit,
+      marginPercent:
+          trip.purpose == TripPurpose.personal ? 0 : analysis.marginPercent,
     );
   }
 

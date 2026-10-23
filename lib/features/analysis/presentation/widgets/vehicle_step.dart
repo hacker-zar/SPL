@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../../vehicle_profile/domain/models/vehicle_profile.dart';
 import '../controllers/trip_quote_controller.dart';
 
@@ -12,15 +13,18 @@ class VehicleStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profile = controller.vehicleProfile;
-    final isComplete = profile?.isComplete ?? false;
+    final personal = controller.purpose == TripPurpose.personal;
+    final profile = controller.activeVehicle;
+    final isComplete = profile?.isCompleteFor(controller.purpose) ?? false;
     return _StepCard(
-      title: 'Mi camión',
+      title: personal ? 'Mi vehículo' : 'Mi camión',
       child: isComplete
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Camión configurado ✓'),
+                Text(personal
+                    ? 'Vehículo configurado ✓'
+                    : 'Camión configurado ✓'),
                 const SizedBox(height: 12),
                 _MetricGrid(
                   children: [
@@ -33,33 +37,46 @@ class VehicleStep extends StatelessWidget {
                       label: 'Mantenimiento',
                       value: '${money(profile.maintenanceCostPerKm)}/km',
                     ),
-                    MetricTile(
-                      label: 'Capacidad',
-                      value: '${decimal(profile.capacityTons)} tn',
-                    ),
+                    if (!personal)
+                      MetricTile(
+                        label: 'Capacidad',
+                        value: '${decimal(profile.capacityTons)} tn',
+                      ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                _PlateSummary(plate: profile.plate),
+                if (!personal) ...[
+                  const SizedBox(height: 10),
+                  _PlateSummary(plate: profile.plate),
+                ],
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () => _editProfile(context, profile),
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Editar vehículo'),
+                  label: Text(personal ? 'Editar vehículo' : 'Editar camión'),
                 ),
               ],
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Cargá el consumo, mantenimiento y capacidad una sola vez.',
+                Text(
+                  personal
+                      ? 'Cargá los datos de consumo y mantenimiento de tu vehículo.'
+                      : 'Cargá el consumo, mantenimiento y capacidad una sola vez.',
                 ),
+                if (personal) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                      'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'),
+                ],
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: () => _editProfile(context, profile),
-                  icon: const Icon(Icons.local_shipping_outlined),
-                  label: const Text('Cargar mi vehículo'),
+                  icon: Icon(personal
+                      ? Icons.directions_car_outlined
+                      : Icons.local_shipping_outlined),
+                  label: Text(
+                      personal ? 'Cargar mi vehículo' : 'Cargar mi camión'),
                 ),
               ],
             ),
@@ -72,24 +89,35 @@ class VehicleStep extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => VehicleProfileSheet(profile: profile),
+      builder: (context) => VehicleProfileSheet(
+        profile: profile,
+        isPersonal: controller.purpose == TripPurpose.personal,
+      ),
     );
     if (result != null) {
-      await controller.saveVehicleProfile(result);
+      if (controller.purpose == TripPurpose.personal) {
+        controller.savePersonalVehicle(result);
+      } else {
+        await controller.saveVehicleProfile(result);
+      }
     }
   }
 }
 
 class VehicleProfileSheet extends StatefulWidget {
-  const VehicleProfileSheet({required this.profile, super.key});
+  const VehicleProfileSheet(
+      {required this.profile, this.isPersonal = false, super.key});
 
   final VehicleProfile? profile;
+  final bool isPersonal;
 
   @override
   State<VehicleProfileSheet> createState() => _VehicleProfileSheetState();
 }
 
 class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
+  bool get isPersonal => widget.isPersonal;
+
   late final TextEditingController consumptionController;
   late final TextEditingController maintenanceController;
   late final TextEditingController capacityController;
@@ -131,12 +159,18 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Mi camión', style: Theme.of(context).textTheme.titleLarge),
+          Text(isPersonal ? 'Mi vehículo' : 'Mi camión',
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           TextField(
             controller: consumptionController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Consumo L/100 km'),
+            decoration: InputDecoration(
+              labelText: 'Consumo L/100 km',
+              helperText: isPersonal
+                  ? 'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'
+                  : null,
+            ),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -152,27 +186,33 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
                 onPressed: _showMaintenanceHelper,
                 child: const Text('Calcular mantenimiento por km')),
           ),
-          TextField(
-            controller: dailyFixedCostController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText:
-                  'Costos fijos por día (seguro, amortización, sueldo del chofer)',
-              helperText: 'Se multiplica por los días estimados del viaje.',
+          if (!isPersonal)
+            TextField(
+              controller: dailyFixedCostController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText:
+                    'Costos fijos por día (seguro, amortización, sueldo del chofer)',
+                helperText: 'Se multiplica por los días estimados del viaje.',
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: capacityController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Capacidad tn'),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: plateController,
-            textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(labelText: 'Patente (opcional)'),
-          ),
+          if (!isPersonal) const SizedBox(height: 10),
+          if (!isPersonal)
+            TextField(
+              controller: capacityController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Capacidad tn'),
+            ),
+          if (!isPersonal) const SizedBox(height: 10),
+          if (!isPersonal)
+            TextField(
+              controller: plateController,
+              textCapitalization: TextCapitalization.characters,
+              decoration:
+                  const InputDecoration(labelText: 'Patente (opcional)'),
+            ),
           if (validationMessage != null) ...[
             const SizedBox(height: 8),
             Text(validationMessage!,
@@ -192,11 +232,11 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     final dailyFixedCost = _parseNumber(dailyFixedCostController.text);
     if (consumption <= 0 ||
         maintenance < 0 ||
-        capacity <= 0 ||
-        dailyFixedCost < 0) {
+        (!isPersonal && (capacity <= 0 || dailyFixedCost < 0))) {
       setState(() {
-        validationMessage =
-            'Ingresá consumo y capacidad mayores a cero, y mantenimiento igual o mayor a cero.';
+        validationMessage = isPersonal
+            ? 'Ingresá consumo mayor a cero y mantenimiento igual o mayor a cero.'
+            : 'Ingresá consumo y capacidad mayores a cero, y mantenimiento igual o mayor a cero.';
       });
       return;
     }
@@ -204,9 +244,9 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
       VehicleProfile(
         consumptionLitersPer100Km: consumption,
         maintenanceCostPerKm: maintenance,
-        capacityTons: capacity,
-        plate: plateController.text.trim(),
-        dailyFixedCost: dailyFixedCost,
+        capacityTons: isPersonal ? 0 : capacity,
+        plate: isPersonal ? '' : plateController.text.trim(),
+        dailyFixedCost: isPersonal ? 0 : dailyFixedCost,
       ),
     );
   }

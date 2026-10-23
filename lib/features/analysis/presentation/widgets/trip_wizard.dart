@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../controllers/trip_quote_controller.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
 import 'offer_costs_step.dart';
 import 'review_step.dart';
 import 'route_step.dart';
@@ -23,7 +24,9 @@ class TripWizard extends StatelessWidget {
   final ValueChanged<WizardStep> onStepChanged;
   final Future<void> Function() onCalculate;
 
-  static const _labels = ['Vehículo', 'Ruta', 'Oferta', 'Revisar'];
+  List<String> get _labels => controller.purpose == TripPurpose.personal
+      ? const ['Vehículo', 'Ruta', 'Costos', 'Revisar']
+      : const ['Vehículo', 'Ruta', 'Oferta', 'Revisar'];
 
   int get _index => step.index;
 
@@ -126,7 +129,7 @@ class _WizardActions extends StatelessWidget {
                   icon: Icon(
                     isReview ? Icons.analytics_outlined : Icons.arrow_forward,
                   ),
-                  label: Text(isReview ? 'Calcular viaje' : 'Continuar'),
+                  label: Text(isReview ? 'Ver cuánto te queda' : 'Continuar'),
                 ),
               ),
             ],

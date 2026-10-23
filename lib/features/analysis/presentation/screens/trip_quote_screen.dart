@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
+import '../../../../shared/widgets/feedback_link.dart';
 import '../../../comparison/domain/models/comparison_trip.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../domain/models/profitability_status.dart';
 import '../../domain/models/trip_analysis.dart';
 import '../controllers/trip_quote_controller.dart';
@@ -14,12 +16,16 @@ import '../widgets/trip_wizard.dart';
 class TripQuoteScreen extends StatefulWidget {
   const TripQuoteScreen({
     required this.controller,
+    this.personalModeEnabled = false,
+    this.feedbackWhatsAppNumber = '',
     this.initialStep,
     this.onComparisonTripReady,
     super.key,
   });
 
   final TripQuoteController controller;
+  final bool personalModeEnabled;
+  final String feedbackWhatsAppNumber;
   final WizardStep? initialStep;
   final ValueChanged<ComparisonTrip>? onComparisonTripReady;
 
@@ -42,7 +48,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Conviene este viaje?'),
+        title: Text(controller.purpose.label),
         actions: [
           IconButton(
             tooltip: 'Historial',
@@ -74,6 +80,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+          feedbackWhatsAppNumber: widget.feedbackWhatsAppNumber,
           onAddToComparison: widget.onComparisonTripReady == null
               ? null
               : _completeComparisonTrip,
@@ -98,6 +105,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
       MaterialPageRoute(
         builder: (context) => HistoryScreen(
           controller: controller,
+          showPersonalTrips: widget.personalModeEnabled,
           onOpenTrip: _openSavedTrip,
           onDuplicateTrip: _duplicateSavedTrip,
           onStartTrip: _startNewTrip,
@@ -107,6 +115,10 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   }
 
   Future<void> _openSavedTrip(TripRecord trip) async {
+    if (!widget.personalModeEnabled &&
+        trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     setState(() => _step = WizardStep.review);
     await Navigator.of(context).push<void>(
@@ -114,12 +126,17 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+          feedbackWhatsAppNumber: widget.feedbackWhatsAppNumber,
         ),
       ),
     );
   }
 
   Future<void> _duplicateSavedTrip(TripRecord trip) async {
+    if (!widget.personalModeEnabled &&
+        trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     setState(() => _step = WizardStep.review);
     Navigator.of(context).pop();
@@ -136,6 +153,7 @@ class TripResultScreen extends StatelessWidget {
   const TripResultScreen({
     required this.controller,
     required this.onNewSimulation,
+    this.feedbackWhatsAppNumber = '',
     this.onAddToComparison,
     super.key,
   });
@@ -143,6 +161,7 @@ class TripResultScreen extends StatelessWidget {
   final TripQuoteController controller;
   final VoidCallback onNewSimulation;
   final ValueChanged<ComparisonTrip>? onAddToComparison;
+  final String feedbackWhatsAppNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -159,115 +178,123 @@ class TripResultScreen extends StatelessWidget {
             ),
           );
         }
+        final personal = controller.purpose == TripPurpose.personal;
         final route = controller.effectiveRoute;
-        final conclusion = switch (analysis.status) {
-          ProfitabilityStatus.profitable =>
-            'El viaje cubre los costos y deja una ganancia saludable.',
-          ProfitabilityStatus.low =>
-            'El viaje deja ganancia, pero el margen es bajo. Conviene negociar precio o revisar costos.',
-          ProfitabilityStatus.loss =>
-            'El viaje no cubre los costos estimados. No conviene aceptarlo con estos datos.',
-        };
+        final effectiveRoute = route;
         return Scaffold(
-          appBar: AppBar(title: const Text('Resultado del viaje')),
+          appBar: AppBar(
+            title: Text(personal ? 'Viaje personal' : 'Resultado del viaje'),
+          ),
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
-                _DecisionHeader(status: analysis.status),
-                const SizedBox(height: 12),
-                _ResultCard(
-                  title: 'Ganancia estimada',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _MetricGrid(
-                        children: [
-                          MetricTile(
-                            label: 'Ganancia',
-                            value: money(analysis.netProfit),
-                            accentColor: analysis.status.color,
-                          ),
-                          MetricTile(
-                            label: 'Margen',
-                            value: '${decimal(analysis.marginPercent)}%',
-                            accentColor: analysis.status.color,
-                          ),
-                        ],
-                      ),
-                      if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
-                          0) ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                            'No incluye costos que no cargaste (seguro, amortización, sueldo).'),
-                      ],
-                    ],
+                if (personal) ...[
+                  _ResultCard(
+                    title: 'Costo total del viaje',
+                    child: MetricTile(
+                      label: 'Costo total',
+                      value: money(analysis.totalCosts),
+                      accentColor: AppColors.roadYellow,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _ResultCard(
-                  title: 'Resumen',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _MetricGrid(
-                        children: [
-                          if (route != null)
-                            MetricTile(
-                              label: 'Kilómetros',
-                              value: decimal(route.distanceKm),
-                            ),
-                          if (route != null)
-                            MetricTile(
-                              label: 'Tiempo',
-                              value: '${decimal(route.durationMinutes / 60)} h',
-                            ),
-                          MetricTile(
-                            label: 'Ingreso esperado',
-                            value: money(analysis.grossIncome),
-                          ),
-                          MetricTile(
-                            label: 'Costos totales',
-                            value: money(analysis.totalCosts),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(conclusion),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _ResultCard(
-                  title: 'Costos y rentabilidad',
-                  child: _MetricGrid(
-                    children: [
-                      MetricTile(
-                          label: 'Combustible',
-                          value: money(analysis.fuelCost)),
-                      MetricTile(
+                  const SizedBox(height: 12),
+                  _ResultCard(
+                    title: 'Desglose de costos',
+                    child: _MetricGrid(
+                      children: [
+                        MetricTile(
+                          label:
+                              'Combustible (${decimal(_estimatedFuelLiters())} L)',
+                          value: money(analysis.fuelCost),
+                        ),
+                        MetricTile(
                           label: 'Mantenimiento',
-                          value: money(analysis.maintenanceCost)),
-                      MetricTile(
+                          value: money(analysis.maintenanceCost),
+                        ),
+                        MetricTile(
                           label: 'Peajes',
-                          value: money(controller.costs.tolls)),
-                      MetricTile(
-                          label: 'Viáticos',
-                          value: money(controller.costs.allowances)),
-                      MetricTile(
-                          label: 'Costos fijos por tiempo',
-                          value: money(analysis.timeCost)),
-                      MetricTile(
-                          label: 'Ingreso/km',
-                          value: money(analysis.incomePerKm)),
-                      MetricTile(
-                          label: 'Costo/km', value: money(analysis.costPerKm)),
-                      MetricTile(
-                        label: 'Mínimo para no perder',
-                        value: money(analysis.breakEvenPrice),
-                      ),
-                    ],
+                          value: controller.costs.tolls == 0
+                              ? 'No cargados'
+                              : money(controller.costs.tolls),
+                        ),
+                        MetricTile(
+                          label: 'Otros gastos',
+                          value: money(controller.costs.allowances),
+                        ),
+                        if (controller.travelers > 1)
+                          MetricTile(
+                            label: 'Costo por persona',
+                            value: money(controller.costPerPerson),
+                          ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Es una estimación. El consumo real cambia según la carga, la velocidad y el tránsito.',
+                  ),
+                ] else ...[
+                  _ProfitSummary(
+                    analysis: analysis,
+                    distanceKm: effectiveRoute?.distanceKm,
+                    durationDays: effectiveRoute?.durationDays,
+                  ),
+                  const SizedBox(height: 12),
+                  _ResultCard(
+                    title: 'Adónde se va la plata',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'Total ${money(analysis.totalCosts)}',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _CostBreakdownRow(
+                            label: 'Combustible',
+                            amount: analysis.fuelCost,
+                            total: analysis.totalCosts),
+                        _CostBreakdownRow(
+                            label: 'Mantenimiento',
+                            amount: analysis.maintenanceCost,
+                            total: analysis.totalCosts),
+                        _CostBreakdownRow(
+                            label: 'Costos fijos',
+                            amount: analysis.timeCost,
+                            total: analysis.totalCosts),
+                        _CostBreakdownRow(
+                            label: 'Peajes',
+                            amount: controller.costs.tolls,
+                            total: analysis.totalCosts,
+                            zeroLabel: 'No cargados'),
+                        _CostBreakdownRow(
+                            label: 'Viáticos',
+                            amount: controller.costs.allowances,
+                            total: analysis.totalCosts),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ResultCard(
+                    title: 'Precio de equilibrio',
+                    child: Text(
+                      'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.',
+                    ),
+                  ),
+                  if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
+                      0) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                        'No incluye costos que no cargaste, como seguro, amortización o sueldo.'),
+                  ],
+                ],
+                const SizedBox(height: 12),
+                const Text(
+                  'Estimación orientativa. Depende de los datos que cargaste y de las condiciones reales del viaje.',
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -276,7 +303,7 @@ class TripResultScreen extends StatelessWidget {
                   label: const Text('Modificar datos'),
                 ),
                 const SizedBox(height: 8),
-                if (onAddToComparison == null)
+                if (onAddToComparison == null || personal)
                   FilledButton.icon(
                     onPressed: controller.isSaving
                         ? null
@@ -304,12 +331,20 @@ class TripResultScreen extends StatelessWidget {
                   icon: const Icon(Icons.add_road_outlined),
                   label: const Text('Nueva simulación'),
                 ),
+                FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
               ],
             ),
           ),
         );
       },
     );
+  }
+
+  double _estimatedFuelLiters() {
+    final profile = controller.activeVehicle;
+    final route = controller.effectiveRoute;
+    if (profile == null || route == null) return 0;
+    return route.distanceKm * profile.consumptionLitersPer100Km / 100;
   }
 
   void _addToComparison(BuildContext context, TripAnalysis analysis) {
@@ -334,17 +369,108 @@ class TripResultScreen extends StatelessWidget {
   }
 }
 
-class _DecisionHeader extends StatelessWidget {
-  const _DecisionHeader({required this.status});
+class _ProfitSummary extends StatelessWidget {
+  const _ProfitSummary({
+    required this.analysis,
+    required this.distanceKm,
+    required this.durationDays,
+  });
 
-  final ProfitabilityStatus status;
+  final TripAnalysis analysis;
+  final double? distanceKm;
+  final double? durationDays;
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon) = switch (status) {
-      ProfitabilityStatus.profitable => ('TE CONVIENE', Icons.check_circle),
-      ProfitabilityStatus.low => ('MARGEN BAJO', Icons.warning_amber_rounded),
-      ProfitabilityStatus.loss => ('NO ACEPTES', Icons.cancel),
+    final days = durationDays?.ceil();
+    final statusLabel = switch (analysis.status) {
+      ProfitabilityStatus.profitable => 'Margen saludable',
+      ProfitabilityStatus.low => 'Margen bajo',
+      ProfitabilityStatus.loss => 'No cubre los costos',
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(analysis.netProfit < 0 ? 'Te faltan' : 'Te quedan',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 2),
+        Text(money(analysis.netProfit.abs()),
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: analysis.status.color,
+                )),
+        const SizedBox(height: 4),
+        Text([
+          if (distanceKm != null) '${money(analysis.profitPerKm)} por km',
+          if (days != null) '$days ${days == 1 ? 'día' : 'días'} de viaje',
+        ].join(' · ')),
+        const SizedBox(height: 12),
+        _DecisionHeader(status: analysis.status, label: statusLabel),
+      ],
+    );
+  }
+}
+
+class _CostBreakdownRow extends StatelessWidget {
+  const _CostBreakdownRow({
+    required this.label,
+    required this.amount,
+    required this.total,
+    this.zeroLabel,
+  });
+
+  final String label;
+  final double amount;
+  final double total;
+  final String? zeroLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final proportion = total <= 0 ? 0.0 : (amount / total).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  child: Text(label,
+                      style: Theme.of(context).textTheme.bodyLarge)),
+              Text(
+                  amount == 0 && zeroLabel != null ? zeroLabel! : money(amount),
+                  style: Theme.of(context).textTheme.titleSmall),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: proportion,
+              minHeight: 8,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              color: AppColors.roadYellow,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DecisionHeader extends StatelessWidget {
+  const _DecisionHeader({required this.status, required this.label});
+
+  final ProfitabilityStatus status;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (status) {
+      ProfitabilityStatus.profitable => Icons.check_circle,
+      ProfitabilityStatus.low => Icons.warning_amber_rounded,
+      ProfitabilityStatus.loss => Icons.cancel,
     };
     return DecoratedBox(
       decoration: BoxDecoration(

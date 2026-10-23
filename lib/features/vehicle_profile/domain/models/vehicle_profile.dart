@@ -1,3 +1,5 @@
+import '../../../trip_data/domain/models/trip_inputs.dart';
+
 class VehicleProfile {
   const VehicleProfile({
     required this.consumptionLitersPer100Km,
@@ -17,6 +19,12 @@ class VehicleProfile {
       consumptionLitersPer100Km > 0 &&
       maintenanceCostPerKm >= 0 &&
       capacityTons > 0;
+
+  bool isCompleteFor(TripPurpose purpose) => switch (purpose) {
+        TripPurpose.freight => isComplete,
+        TripPurpose.personal =>
+          consumptionLitersPer100Km > 0 && maintenanceCostPerKm >= 0,
+      };
 
   VehicleProfile copyWith({
     double? consumptionLitersPer100Km,

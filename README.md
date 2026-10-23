@@ -1,8 +1,8 @@
-# Conviene este viaje?
+# Netokm
 
-MVP Flutter para un chofer o transportista independiente.
+Netokm es una app Flutter para calcular cuánto te queda en cada viaje, con combustible, peajes y mantenimiento en un solo lugar.
 
-La app responde una sola pregunta: **me conviene aceptar este viaje?**
+Ayuda a entender cuánto cuesta cada viaje y cuánto deja cada flete.
 
 ## Alcance implementado
 
