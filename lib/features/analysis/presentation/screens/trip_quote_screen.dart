@@ -15,12 +15,14 @@ import '../widgets/trip_wizard.dart';
 class TripQuoteScreen extends StatefulWidget {
   const TripQuoteScreen({
     required this.controller,
+    this.personalModeEnabled = false,
     this.initialStep,
     this.onComparisonTripReady,
     super.key,
   });
 
   final TripQuoteController controller;
+  final bool personalModeEnabled;
   final WizardStep? initialStep;
   final ValueChanged<ComparisonTrip>? onComparisonTripReady;
 
@@ -99,6 +101,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
       MaterialPageRoute(
         builder: (context) => HistoryScreen(
           controller: controller,
+          showPersonalTrips: widget.personalModeEnabled,
           onOpenTrip: _openSavedTrip,
           onDuplicateTrip: _duplicateSavedTrip,
           onStartTrip: _startNewTrip,
@@ -108,6 +111,10 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   }
 
   Future<void> _openSavedTrip(TripRecord trip) async {
+    if (!widget.personalModeEnabled &&
+        trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     setState(() => _step = WizardStep.review);
     await Navigator.of(context).push<void>(
@@ -121,6 +128,10 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   }
 
   Future<void> _duplicateSavedTrip(TripRecord trip) async {
+    if (!widget.personalModeEnabled &&
+        trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     setState(() => _step = WizardStep.review);
     Navigator.of(context).pop();

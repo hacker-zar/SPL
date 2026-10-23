@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rentabilidad_flete/core/constants/app_constants.dart';
+import 'package:rentabilidad_flete/app.dart';
 import 'package:rentabilidad_flete/core/theme/app_theme.dart';
 import 'package:rentabilidad_flete/features/analysis/domain/services/profitability_calculator.dart';
 import 'package:rentabilidad_flete/features/analysis/presentation/controllers/trip_quote_controller.dart';
@@ -97,6 +97,7 @@ void main() {
       theme: AppTheme.dark(),
       home: HistoryScreen(
         controller: controller,
+        showPersonalTrips: enablePersonalMode,
         onOpenTrip: (_) async {},
         onDuplicateTrip: (_) async {},
         onStartTrip: () async {},
