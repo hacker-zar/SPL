@@ -63,6 +63,7 @@ class TripQuoteController extends ChangeNotifier {
   CostInputs costs;
   TollEstimate? tollEstimate;
   bool tollsEditedManually = false;
+  final Set<String> invalidOfferFields = {};
 
   VehicleProfile? get activeVehicle =>
       purpose == TripPurpose.personal ? personalVehicle : vehicleProfile;
@@ -177,6 +178,11 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   bool validateOfferStep() {
+    if (invalidOfferFields.isNotEmpty || costs.fuelPricePerLiter <= 0) {
+      return _setValidationError(
+        'Revisá los importes: el combustible por litro debe ser mayor que cero.',
+      );
+    }
     if (purpose == TripPurpose.freight && !tripInputs.isValid) {
       return _setValidationError('Carga un precio válido para continuar.');
     }
@@ -195,6 +201,15 @@ class TripQuoteController extends ChangeNotifier {
       );
     }
     return _clearValidationError();
+  }
+
+  void setOfferFieldValidity(String field, bool isValid) {
+    if (isValid) {
+      invalidOfferFields.remove(field);
+    } else {
+      invalidOfferFields.add(field);
+    }
+    notifyListeners();
   }
 
   bool _setValidationError(String message) {
@@ -221,6 +236,7 @@ class TripQuoteController extends ChangeNotifier {
     tons = 0;
     pricePerTon = 0;
     travelers = 1;
+    invalidOfferFields.clear();
     emptyReturn = false;
     isRouteLoading = false;
     isOriginResolving = false;

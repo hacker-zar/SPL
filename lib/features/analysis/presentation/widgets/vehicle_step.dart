@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/money_format.dart';
+import '../../../../core/utils/parse_amount.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../../vehicle_profile/domain/models/vehicle_profile.dart';
@@ -162,22 +163,19 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
           Text(isPersonal ? 'Mi vehículo' : 'Mi camión',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
-          TextField(
+          _VehicleNumberField(
             controller: consumptionController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Consumo L/100 km',
-              helperText: isPersonal
-                  ? 'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'
-                  : null,
-            ),
+            label: 'Consumo L/100 km',
+            positive: true,
+            currency: false,
+            hint: isPersonal
+                ? 'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'
+                : null,
           ),
           const SizedBox(height: 10),
-          TextField(
+          _VehicleNumberField(
             controller: maintenanceController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration:
-                const InputDecoration(labelText: 'Mantenimiento por km'),
+            label: 'Mantenimiento por km',
           ),
           const Text('Incluye neumáticos, aceite, service y reparaciones.'),
           Align(
@@ -187,23 +185,19 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
                 child: const Text('Calcular mantenimiento por km')),
           ),
           if (!isPersonal)
-            TextField(
+            _VehicleNumberField(
               controller: dailyFixedCostController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText:
-                    'Costos fijos por día (seguro, amortización, sueldo del chofer)',
-                helperText: 'Se multiplica por los días estimados del viaje.',
-              ),
+              label:
+                  'Costos fijos por día (seguro, amortización, sueldo del chofer)',
+              hint: 'Se multiplica por los días estimados del viaje.',
             ),
           if (!isPersonal) const SizedBox(height: 10),
           if (!isPersonal)
-            TextField(
+            _VehicleNumberField(
               controller: capacityController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Capacidad tn'),
+              label: 'Capacidad tn',
+              currency: false,
+              positive: true,
             ),
           if (!isPersonal) const SizedBox(height: 10),
           if (!isPersonal)
@@ -226,13 +220,19 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
   }
 
   void _save() {
-    final consumption = _parseNumber(consumptionController.text);
-    final maintenance = _parseNumber(maintenanceController.text);
-    final capacity = _parseNumber(capacityController.text);
-    final dailyFixedCost = _parseNumber(dailyFixedCostController.text);
-    if (consumption <= 0 ||
+    final consumption = parseAmount(consumptionController.text);
+    final maintenance = parseAmount(maintenanceController.text);
+    final capacity = parseAmount(capacityController.text);
+    final dailyFixedCost = parseAmount(dailyFixedCostController.text);
+    if (consumption == null ||
+        consumption <= 0 ||
+        maintenance == null ||
         maintenance < 0 ||
-        (!isPersonal && (capacity <= 0 || dailyFixedCost < 0))) {
+        (!isPersonal &&
+            (capacity == null ||
+                capacity <= 0 ||
+                dailyFixedCost == null ||
+                dailyFixedCost < 0))) {
       setState(() {
         validationMessage = isPersonal
             ? 'Ingresá consumo mayor a cero y mantenimiento igual o mayor a cero.'
@@ -244,9 +244,9 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
       VehicleProfile(
         consumptionLitersPer100Km: consumption,
         maintenanceCostPerKm: maintenance,
-        capacityTons: isPersonal ? 0 : capacity,
+        capacityTons: isPersonal ? 0 : capacity!,
         plate: isPersonal ? '' : plateController.text.trim(),
-        dailyFixedCost: isPersonal ? 0 : dailyFixedCost,
+        dailyFixedCost: isPersonal ? 0 : dailyFixedCost!,
       ),
     );
   }
@@ -256,24 +256,27 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     final kmController = TextEditingController();
     double? result;
     bool invalidKm = false;
+    bool invalidExpense = false;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Mantenimiento por km'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-                controller: expenseController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Gasto de mantenimiento del último año')),
-            TextField(
-                controller: kmController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Km recorridos en el año')),
+            _VehicleNumberField(
+              controller: expenseController,
+              label: 'Gasto de mantenimiento del último año',
+              error: invalidExpense,
+              onEdited: () => setDialogState(() => invalidExpense = false),
+            ),
+            _VehicleNumberField(
+              controller: kmController,
+              label: 'Km recorridos en el año',
+              positive: true,
+              currency: false,
+              error: invalidKm,
+              onEdited: () => setDialogState(() => invalidKm = false),
+            ),
             if (invalidKm)
               const Text('Los kilómetros deben ser mayores a cero.'),
             if (result != null)
@@ -284,11 +287,13 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
           actions: [
             TextButton(
                 onPressed: () {
-                  final expense = _parseNumber(expenseController.text);
-                  final km = _parseNumber(kmController.text);
+                  final expense = parseAmount(expenseController.text);
+                  final km = parseAmount(kmController.text);
                   setDialogState(() {
-                    invalidKm = km <= 0;
-                    result = km > 0 && expense >= 0 ? expense / km : null;
+                    invalidKm = km == null || km <= 0;
+                    invalidExpense = expense == null || expense < 0;
+                    result =
+                        !invalidKm && !invalidExpense ? expense! / km! : null;
                   });
                 },
                 child: const Text('Calcular')),
@@ -390,8 +395,67 @@ class _PlateSummary extends StatelessWidget {
   }
 }
 
-double _parseNumber(String value) =>
-    double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
+class _VehicleNumberField extends StatefulWidget {
+  const _VehicleNumberField({
+    required this.controller,
+    required this.label,
+    this.currency = true,
+    this.positive = false,
+    this.hint,
+    this.error = false,
+    this.onEdited,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final bool currency;
+  final bool positive;
+  final String? hint;
+  final bool error;
+  final VoidCallback? onEdited;
+
+  @override
+  State<_VehicleNumberField> createState() => _VehicleNumberFieldState();
+}
+
+class _VehicleNumberFieldState extends State<_VehicleNumberField> {
+  double? value;
+  bool invalid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    value = parseAmount(widget.controller.text);
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+        controller: widget.controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: widget.label,
+          helperText: invalid
+              ? null
+              : value == null
+                  ? widget.hint
+                  : widget.currency
+                      ? money(value!)
+                      : decimal(value!),
+          errorText:
+              (invalid || widget.error) ? 'Ingresá un número válido.' : null,
+        ),
+        onChanged: (text) {
+          final parsed = parseAmount(text);
+          final valid =
+              parsed != null && (widget.positive ? parsed > 0 : parsed >= 0);
+          setState(() {
+            value = parsed;
+            invalid = !valid;
+          });
+          widget.onEdited?.call();
+        },
+      );
+}
 
 String _numberText(double value) => value == 0
     ? ''
