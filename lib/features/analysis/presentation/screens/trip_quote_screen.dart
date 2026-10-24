@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
+import '../../../../shared/layout/breakpoints.dart';
 import '../../../../shared/widgets/metric_tile.dart';
+import '../../../../shared/widgets/responsive_body.dart';
 import '../../../../shared/widgets/feedback_link.dart';
 import '../../../comparison/domain/models/comparison_trip.dart';
 import '../../../history/domain/models/trip_record.dart';
@@ -184,165 +186,323 @@ class TripResultScreen extends StatelessWidget {
         }
         final personal = controller.purpose == TripPurpose.personal;
         final route = controller.effectiveRoute;
-        final effectiveRoute = route;
+        final isExpanded = Breakpoints.isExpanded(
+          MediaQuery.sizeOf(context).width,
+        );
         return Scaffold(
           appBar: AppBar(
             title: Text(personal ? 'Viaje personal' : 'Resultado del viaje'),
           ),
           body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
-                if (personal) ...[
-                  _ResultCard(
-                    title: 'Costo total del viaje',
-                    child: MetricTile(
-                      label: 'Costo total',
-                      value: money(analysis.totalCosts),
-                      accentColor: AppColors.roadYellow,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _ResultCard(
-                    title: 'Desglose de costos',
-                    child: _MetricGrid(
-                      children: [
-                        MetricTile(
-                          label:
-                              'Combustible (${decimal(_estimatedFuelLiters())} L)',
-                          value: money(analysis.fuelCost),
-                        ),
-                        MetricTile(
-                          label: 'Mantenimiento',
-                          value: money(analysis.maintenanceCost),
-                        ),
-                        MetricTile(
-                          label: 'Peajes',
-                          value: controller.costs.tolls == 0
-                              ? 'No cargados'
-                              : money(controller.costs.tolls),
-                        ),
-                        MetricTile(
-                          label: 'Otros gastos',
-                          value: money(controller.costs.allowances),
-                        ),
-                        if (controller.travelers > 1)
-                          MetricTile(
-                            label: 'Costo por persona',
-                            value: money(controller.costPerPerson),
+            child: ResponsiveBody(
+              maxWidth: isExpanded ? 1120 : 720,
+              child: personal
+                  ? _personalResult(context, analysis)
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final useWideLayout = constraints.maxWidth >=
+                            Breakpoints.expandedMinWidth;
+                        if (!useWideLayout) {
+                          return _compactFreightResult(
+                            context,
+                            analysis,
+                            route?.distanceKm,
+                            route?.durationDays,
+                          );
+                        }
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: 8, bottom: 24),
+                          child: _expandedFreightResult(
+                            context,
+                            analysis,
+                            route?.distanceKm,
+                            route?.durationDays,
                           ),
-                      ],
+                        );
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Es una estimación. El consumo real cambia según la carga, la velocidad y el tránsito.',
-                  ),
-                ] else ...[
-                  _ProfitSummary(
-                    analysis: analysis,
-                    distanceKm: effectiveRoute?.distanceKm,
-                    durationDays: effectiveRoute?.durationDays,
-                  ),
-                  const SizedBox(height: 12),
-                  _ResultCard(
-                    title: 'Adónde se va la plata',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            'Total ${money(analysis.totalCosts)}',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        _CostBreakdownRow(
-                            label: 'Combustible',
-                            amount: analysis.fuelCost,
-                            total: analysis.totalCosts),
-                        _CostBreakdownRow(
-                            label: 'Mantenimiento',
-                            amount: analysis.maintenanceCost,
-                            total: analysis.totalCosts),
-                        _CostBreakdownRow(
-                            label: 'Costos fijos',
-                            amount: analysis.timeCost,
-                            total: analysis.totalCosts),
-                        _CostBreakdownRow(
-                            label: 'Peajes',
-                            amount: controller.costs.tolls,
-                            total: analysis.totalCosts,
-                            zeroLabel: 'No cargados'),
-                        _CostBreakdownRow(
-                            label: 'Viáticos',
-                            amount: controller.costs.allowances,
-                            total: analysis.totalCosts),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _ResultCard(
-                    title: 'Precio de equilibrio',
-                    child: Text(
-                      'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.',
-                    ),
-                  ),
-                  if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
-                      0) ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                        'No incluye costos que no cargaste, como seguro, amortización o sueldo.'),
-                  ],
-                ],
-                const SizedBox(height: 12),
-                const Text(
-                  'Estimación orientativa. Depende de los datos que cargaste y de las condiciones reales del viaje.',
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Modificar datos'),
-                ),
-                const SizedBox(height: 8),
-                if (onAddToComparison == null || personal)
-                  FilledButton.icon(
-                    onPressed: controller.isSaving
-                        ? null
-                        : () => _saveTripAndReturnHome(context),
-                    icon: const Icon(Icons.save_outlined),
-                    label: Text(
-                      controller.isSaving
-                          ? 'Guardando...'
-                          : 'Guardar simulación',
-                    ),
-                  )
-                else
-                  FilledButton.icon(
-                    onPressed: () => _addToComparison(context, analysis),
-                    icon: const Icon(Icons.add_chart_outlined),
-                    label: const Text('Agregar a comparación'),
-                  ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () {
-                    controller.resetSimulation();
-                    onNewSimulation();
-                    Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.add_road_outlined),
-                  label: const Text('Nueva simulación'),
-                ),
-                FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
-              ],
             ),
           ),
         );
       },
     );
   }
+
+  Widget _personalResult(BuildContext context, TripAnalysis analysis) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+      children: [
+        _ResultCard(
+          title: 'Costo total del viaje',
+          child: MetricTile(
+            label: 'Costo total',
+            value: money(analysis.totalCosts),
+            accentColor: AppColors.roadYellow,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _ResultCard(
+          title: 'Desglose de costos',
+          child: _MetricGrid(
+            children: [
+              MetricTile(
+                label: 'Combustible (${decimal(_estimatedFuelLiters())} L)',
+                value: money(analysis.fuelCost),
+              ),
+              MetricTile(
+                label: 'Mantenimiento',
+                value: money(analysis.maintenanceCost),
+              ),
+              MetricTile(
+                label: 'Peajes',
+                value: controller.costs.tolls == 0
+                    ? 'No cargados'
+                    : money(controller.costs.tolls),
+              ),
+              MetricTile(
+                label: 'Otros gastos',
+                value: money(controller.costs.allowances),
+              ),
+              if (controller.travelers > 1)
+                MetricTile(
+                  label: 'Costo por persona',
+                  value: money(controller.costPerPerson),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Es una estimación. El consumo real cambia según la carga, la velocidad y el tránsito.',
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Estimación orientativa. Depende de los datos que cargaste y de las condiciones reales del viaje.',
+        ),
+        const SizedBox(height: 12),
+        _resultActions(context, analysis),
+        FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
+      ],
+    );
+  }
+
+  Widget _compactFreightResult(
+    BuildContext context,
+    TripAnalysis analysis,
+    double? distanceKm,
+    double? durationDays,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(top: 8, bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DecisionHeader(
+                  status: analysis.status,
+                  label: _statusLabel(analysis.status),
+                  marginPercent: analysis.marginPercent,
+                ),
+                const SizedBox(height: 12),
+                _ProfitSummary(
+                  analysis: analysis,
+                  distanceKm: distanceKm,
+                  durationDays: durationDays,
+                ),
+                const SizedBox(height: 12),
+                _ResultFinancialRow(analysis: analysis),
+                const SizedBox(height: 12),
+                _breakEvenCard(context, analysis),
+                const SizedBox(height: 12),
+                _costBreakdown(context, analysis),
+                _unconfiguredCostNotice(),
+                const SizedBox(height: 12),
+                const Text(
+                  'Estimación orientativa. Depende de los datos que cargaste y de las condiciones reales del viaje.',
+                ),
+                FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: _resultActions(context, analysis),
+        ),
+      ],
+    );
+  }
+
+  Widget _expandedFreightResult(
+    BuildContext context,
+    TripAnalysis analysis,
+    double? distanceKm,
+    double? durationDays,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _DecisionHeader(
+                status: analysis.status,
+                label: _statusLabel(analysis.status),
+                marginPercent: analysis.marginPercent,
+              ),
+              const SizedBox(height: 12),
+              _ProfitSummary(
+                analysis: analysis,
+                distanceKm: distanceKm,
+                durationDays: durationDays,
+              ),
+              const SizedBox(height: 12),
+              _ResultFinancialRow(analysis: analysis),
+              const SizedBox(height: 12),
+              _breakEvenCard(context, analysis),
+              const SizedBox(height: 12),
+              _resultActions(context, analysis),
+              const SizedBox(height: 12),
+              const Text(
+                'Estimación orientativa. Depende de los datos que cargaste y de las condiciones reales del viaje.',
+              ),
+              FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
+            ],
+          ),
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _costBreakdown(context, analysis),
+              _unconfiguredCostNotice(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _breakEvenCard(BuildContext context, TripAnalysis analysis) {
+    final perTon = controller.pricingMode == PricingMode.perTon;
+    return _ResultCard(
+      title: perTon ? 'Precio mínimo por tonelada' : 'Precio de equilibrio',
+      child: Text(
+        perTon
+            ? '${money(analysis.minimumPricePerTon)} por tonelada'
+            : 'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.',
+      ),
+    );
+  }
+
+  Widget _costBreakdown(BuildContext context, TripAnalysis analysis) {
+    return _ResultCard(
+      title: 'Adónde se va la plata',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Total ${money(analysis.totalCosts)}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _CostBreakdownRow(
+            label: 'Combustible',
+            amount: analysis.fuelCost,
+            total: analysis.totalCosts,
+          ),
+          _CostBreakdownRow(
+            label: 'Mantenimiento',
+            amount: analysis.maintenanceCost,
+            total: analysis.totalCosts,
+          ),
+          _CostBreakdownRow(
+            label: 'Costos del camión por tiempo',
+            amount: analysis.timeCost,
+            total: analysis.totalCosts,
+          ),
+          _CostBreakdownRow(
+            label: 'Peajes',
+            amount: controller.costs.tolls,
+            total: analysis.totalCosts,
+            zeroLabel: 'No cargados',
+          ),
+          _CostBreakdownRow(
+            label: 'Viáticos',
+            amount: controller.costs.allowances,
+            total: analysis.totalCosts,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _unconfiguredCostNotice() {
+    if ((controller.vehicleProfile?.dailyFixedCost ?? 0) != 0) {
+      return const SizedBox.shrink();
+    }
+    return const Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: Text(
+        'No incluye costos que no cargaste, como seguro, amortización o sueldo.',
+      ),
+    );
+  }
+
+  Widget _resultActions(BuildContext context, TripAnalysis analysis) {
+    final personal = controller.purpose == TripPurpose.personal;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Modificar datos'),
+        ),
+        const SizedBox(height: 8),
+        if (onAddToComparison == null || personal)
+          FilledButton.icon(
+            onPressed: controller.isSaving
+                ? null
+                : () => _saveTripAndReturnHome(context),
+            icon: const Icon(Icons.save_outlined),
+            label: Text(
+              controller.isSaving ? 'Guardando...' : 'Guardar simulación',
+            ),
+          )
+        else
+          FilledButton.icon(
+            onPressed: () => _addToComparison(context, analysis),
+            icon: const Icon(Icons.add_chart_outlined),
+            label: const Text('Agregar a comparación'),
+          ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: () {
+            controller.resetSimulation();
+            onNewSimulation();
+            Navigator.of(context).pop();
+          },
+          icon: const Icon(Icons.add_road_outlined),
+          label: const Text('Nueva simulación'),
+        ),
+      ],
+    );
+  }
+
+  String _statusLabel(ProfitabilityStatus status) => switch (status) {
+        ProfitabilityStatus.profitable => 'Margen saludable',
+        ProfitabilityStatus.low => 'Margen bajo',
+        ProfitabilityStatus.loss => 'No cubre los costos',
+      };
 
   double _estimatedFuelLiters() {
     final profile = controller.activeVehicle;
@@ -387,11 +547,6 @@ class _ProfitSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = durationDays?.ceil();
-    final statusLabel = switch (analysis.status) {
-      ProfitabilityStatus.profitable => 'Margen saludable',
-      ProfitabilityStatus.low => 'Margen bajo',
-      ProfitabilityStatus.loss => 'No cubre los costos',
-    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -405,11 +560,54 @@ class _ProfitSummary extends StatelessWidget {
                 )),
         const SizedBox(height: 4),
         Text([
-          if (distanceKm != null) '${money(analysis.profitPerKm)} por km',
+          '${money(analysis.profitPerKm)} por km',
           if (days != null) '$days ${days == 1 ? 'día' : 'días'} de viaje',
         ].join(' · ')),
-        const SizedBox(height: 12),
-        _DecisionHeader(status: analysis.status, label: statusLabel),
+      ],
+    );
+  }
+}
+
+class _ResultFinancialRow extends StatelessWidget {
+  const _ResultFinancialRow({required this.analysis});
+
+  final TripAnalysis analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = [
+      ('Oferta', analysis.grossIncome),
+      ('Costos totales', analysis.totalCosts),
+      ('Te quedan', analysis.netProfit),
+    ];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < metrics.length; index++) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  metrics[index].$1,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    money(metrics[index].$2),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -464,10 +662,15 @@ class _CostBreakdownRow extends StatelessWidget {
 }
 
 class _DecisionHeader extends StatelessWidget {
-  const _DecisionHeader({required this.status, required this.label});
+  const _DecisionHeader({
+    required this.status,
+    required this.label,
+    required this.marginPercent,
+  });
 
   final ProfitabilityStatus status;
   final String label;
+  final double marginPercent;
 
   @override
   Widget build(BuildContext context) {
@@ -482,15 +685,17 @@ class _DecisionHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.asphalt, size: 36),
-            const SizedBox(width: 14),
+            Icon(icon, color: AppColors.asphalt, size: 28),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                label,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                '$label · ${decimal(marginPercent)}%',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: AppColors.asphalt,
                       fontWeight: FontWeight.w800,
                     ),
