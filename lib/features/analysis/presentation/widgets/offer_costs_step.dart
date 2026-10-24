@@ -91,37 +91,23 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
               _NumberField(
                 controller: flatRateController,
                 label: 'Precio del viaje',
-<<<<<<< Updated upstream
                 onChanged: (value) =>
                     _setValue('flatRate', value, controller.setFlatRate),
-=======
-                onChanged: (value) => _setOfferValue(
-                    'flatRate', value, controller.setFlatRate),
->>>>>>> Stashed changes
               )
             else if (!personal) ...[
               _NumberField(
                 controller: tonsController,
                 label: 'Toneladas',
                 currency: false,
-<<<<<<< Updated upstream
                 onChanged: (value) =>
                     _setValue('tons', value, controller.setTons),
-=======
-                onChanged: (value) => _setOfferValue('tons', value, controller.setTons),
->>>>>>> Stashed changes
               ),
               const SizedBox(height: 10),
               _NumberField(
                 controller: pricePerTonController,
                 label: 'Precio por tonelada',
-<<<<<<< Updated upstream
                 onChanged: (value) =>
                     _setValue('pricePerTon', value, controller.setPricePerTon),
-=======
-                onChanged: (value) => _setOfferValue(
-                    'pricePerTon', value, controller.setPricePerTon),
->>>>>>> Stashed changes
               ),
             ],
             if (overCapacity) ...[
@@ -135,20 +121,10 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
             _NumberField(
               controller: fuelPriceController,
               label: 'Combustible por litro',
-<<<<<<< Updated upstream
               positive: true,
               onChanged: (value) => _setValue(
                   'fuelPrice', value, controller.setFuelPrice,
                   positive: true),
-=======
-              onChanged: (value) => _setOfferValue(
-                'fuelPrice',
-                value,
-                controller.setFuelPrice,
-                minimum: 0,
-                exclusiveMinimum: true,
-              ),
->>>>>>> Stashed changes
             ),
             if (!personal && controller.pricingMode == PricingMode.perTon) ...[
               const SizedBox(height: 12),
@@ -162,13 +138,8 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
               controller: tollsController,
               label:
                   'Peajes (total del viaje, incluida la vuelta si corresponde)',
-<<<<<<< Updated upstream
               onChanged: (value) =>
                   _setValue('tolls', value, controller.setTolls),
-=======
-              onChanged: controller.setTolls,
-              onParsed: (value) => _setOfferValue('tolls', value, controller.setTolls),
->>>>>>> Stashed changes
               trailing: tollEstimate == null
                   ? null
                   : IconButton(
@@ -200,38 +171,18 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
             const SizedBox(height: 10),
             _NumberField(
               controller: allowancesController,
-<<<<<<< Updated upstream
               label:
                   personal ? 'Otros gastos (comida, alojamiento)' : 'Viáticos',
               onChanged: (value) =>
                   _setValue('allowances', value, controller.setAllowances),
-=======
-              label: personal
-                  ? 'Otros gastos (comida, alojamiento)'
-                  : 'Viáticos',
-              onChanged: controller.setAllowances,
-              onParsed: (value) =>
-                  _setOfferValue('allowances', value, controller.setAllowances),
->>>>>>> Stashed changes
             ),
             if (personal) ...[
               const SizedBox(height: 10),
               _TravelerField(
                 controller: travelersController,
-<<<<<<< Updated upstream
                 onChanged: controller.setTravelers,
                 onValidityChanged: (valid) =>
                     controller.setOfferFieldValidity('travelers', valid),
-=======
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Cantidad de personas que comparten los gastos',
-                  helperText: 'Mínimo: 1 persona.',
-                ),
-                onChanged: (value) => controller.setTravelers(
-                  (parseAmount(value) ?? 1).toInt(),
-                ),
->>>>>>> Stashed changes
               ),
             ],
           ],
@@ -240,25 +191,11 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
     );
   }
 
-<<<<<<< Updated upstream
   void _setValue(String name, double? value, ValueChanged<double> setter,
       {bool positive = false}) {
     final valid = value != null && (positive ? value > 0 : value >= 0);
     controller.setOfferFieldValidity(name, valid);
     if (valid) setter(value);
-=======
-  void _setOfferValue(
-    String field,
-    double? value,
-    ValueChanged<double> setValue, {
-    double minimum = 0,
-    bool exclusiveMinimum = false,
-  }) {
-    final valid = value != null &&
-        (exclusiveMinimum ? value > minimum : value >= minimum);
-    controller.setOfferFieldValidity(field, valid);
-    if (valid) setValue(value);
->>>>>>> Stashed changes
   }
 }
 
@@ -267,21 +204,13 @@ class _NumberField extends StatefulWidget {
     required this.controller,
     required this.label,
     required this.onChanged,
-<<<<<<< Updated upstream
     this.currency = true,
     this.positive = false,
-=======
-    this.onParsed,
-    this.currency = true,
-    this.minimum = 0,
-    this.exclusiveMinimum = false,
->>>>>>> Stashed changes
     this.trailing,
   });
 
   final TextEditingController controller;
   final String label;
-<<<<<<< Updated upstream
   final ValueChanged<double?> onChanged;
   final bool currency;
   final bool positive;
@@ -292,56 +221,6 @@ class _NumberField extends StatefulWidget {
 }
 
 class _NumberFieldState extends State<_NumberField> {
-=======
-  final ValueChanged<double> onChanged;
-  final ValueChanged<double?>? onParsed;
-  final bool currency;
-  final double minimum;
-  final bool exclusiveMinimum;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ParsedAmountField(
-      controller: controller,
-      label: label,
-      onChanged: onChanged,
-      onParsed: onParsed,
-      currency: currency,
-      minimum: minimum,
-      exclusiveMinimum: exclusiveMinimum,
-      trailing: trailing,
-    );
-  }
-}
-
-class _ParsedAmountField extends StatefulWidget {
-  const _ParsedAmountField({
-    required this.controller,
-    required this.label,
-    required this.onChanged,
-    required this.onParsed,
-    required this.currency,
-    required this.minimum,
-    required this.exclusiveMinimum,
-    this.trailing,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final ValueChanged<double> onChanged;
-  final ValueChanged<double?>? onParsed;
-  final bool currency;
-  final double minimum;
-  final bool exclusiveMinimum;
-  final Widget? trailing;
-
-  @override
-  State<_ParsedAmountField> createState() => _ParsedAmountFieldState();
-}
-
-class _ParsedAmountFieldState extends State<_ParsedAmountField> {
->>>>>>> Stashed changes
   double? parsed;
   bool invalid = false;
 
@@ -352,7 +231,6 @@ class _ParsedAmountFieldState extends State<_ParsedAmountField> {
   }
 
   @override
-<<<<<<< Updated upstream
   Widget build(BuildContext context) => TextField(
         controller: widget.controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -417,35 +295,6 @@ class _TravelerFieldState extends State<_TravelerField> {
           if (valid) widget.onChanged(count);
         },
       );
-=======
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: widget.controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: widget.label,
-        suffixIcon: widget.trailing,
-        errorText: invalid ? 'Ingresá un número válido.' : null,
-        helperText: !invalid && parsed != null
-            ? (widget.currency ? money(parsed!) : decimal(parsed!))
-            : null,
-      ),
-      onChanged: (value) {
-        final next = parseAmount(value);
-        final valid = next != null &&
-            (widget.exclusiveMinimum
-                ? next > widget.minimum
-                : next >= widget.minimum);
-        setState(() {
-          parsed = next;
-          invalid = !valid;
-        });
-        widget.onParsed?.call(next);
-        if (valid) widget.onChanged(next);
-      },
-    );
-  }
->>>>>>> Stashed changes
 }
 
 String _numberText(double value) => value == 0
