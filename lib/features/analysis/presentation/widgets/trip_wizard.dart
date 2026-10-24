@@ -8,7 +8,7 @@ import 'route_step.dart';
 import 'vehicle_step.dart';
 import 'wizard_progress_header.dart';
 
-enum WizardStep { vehicle, route, offer, review }
+enum WizardStep { route, offer, vehicle, review }
 
 class TripWizard extends StatelessWidget {
   const TripWizard({
@@ -24,11 +24,45 @@ class TripWizard extends StatelessWidget {
   final ValueChanged<WizardStep> onStepChanged;
   final Future<void> Function() onCalculate;
 
-  List<String> get _labels => controller.purpose == TripPurpose.personal
-      ? const ['Vehículo', 'Ruta', 'Costos', 'Revisar']
-      : const ['Vehículo', 'Ruta', 'Oferta', 'Revisar'];
+  List<WizardStep> get _steps {
+    if (controller.purpose == TripPurpose.personal) {
+      return const [
+        WizardStep.vehicle,
+        WizardStep.route,
+        WizardStep.offer,
+        WizardStep.review,
+      ];
+    }
 
-  int get _index => step.index;
+    final profile = controller.vehicleProfile;
+    final vehicleComplete =
+        profile?.isCompleteFor(TripPurpose.freight) ?? false;
+    return [
+      WizardStep.route,
+      WizardStep.offer,
+      if (!vehicleComplete || step == WizardStep.vehicle) WizardStep.vehicle,
+      WizardStep.review,
+    ];
+  }
+
+  List<String> get _labels => _steps.map((item) {
+        if (controller.purpose == TripPurpose.personal) {
+          return switch (item) {
+            WizardStep.vehicle => 'Vehículo',
+            WizardStep.route => 'Ruta',
+            WizardStep.offer => 'Costos',
+            WizardStep.review => 'Revisar',
+          };
+        }
+        return switch (item) {
+          WizardStep.vehicle => 'Camión',
+          WizardStep.route => 'Ruta',
+          WizardStep.offer => 'Oferta y costos',
+          WizardStep.review => 'Revisar',
+        };
+      }).toList();
+
+  int get _index => _steps.indexOf(step);
 
   @override
   Widget build(BuildContext context) {
@@ -58,9 +92,8 @@ class TripWizard extends StatelessWidget {
           _WizardActions(
             step: step,
             isRouteLoading: controller.isRouteLoading,
-            onBack: _index == 0
-                ? null
-                : () => onStepChanged(WizardStep.values[_index - 1]),
+            onBack:
+                _index == 0 ? null : () => onStepChanged(_steps[_index - 1]),
             onContinue: _continue,
           ),
         ],
@@ -79,8 +112,8 @@ class TripWizard extends StatelessWidget {
       WizardStep.offer => controller.validateOfferStep(),
       WizardStep.review => false,
     };
-    if (canAdvance) {
-      onStepChanged(WizardStep.values[_index + 1]);
+    if (canAdvance && _index + 1 < _steps.length) {
+      onStepChanged(_steps[_index + 1]);
     }
   }
 }

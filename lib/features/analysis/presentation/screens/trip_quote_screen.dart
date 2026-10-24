@@ -36,7 +36,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
   @override
   void initState() {
     super.initState();
-    _step = widget.initialStep ?? WizardStep.vehicle;
+    _step = widget.initialStep ?? _firstStep;
   }
 
   @override
@@ -74,7 +74,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
       MaterialPageRoute(
         builder: (context) => TripResultScreen(
           controller: controller,
-          onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+          onNewSimulation: () => setState(() => _step = _firstStep),
           onAddToComparison: widget.onComparisonTripReady == null
               ? null
               : _completeComparisonTrip,
@@ -114,7 +114,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
       MaterialPageRoute(
         builder: (context) => TripResultScreen(
           controller: controller,
-          onNewSimulation: () => setState(() => _step = WizardStep.vehicle),
+          onNewSimulation: () => setState(() => _step = _firstStep),
         ),
       ),
     );
@@ -128,9 +128,13 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
 
   Future<void> _startNewTrip() async {
     controller.resetSimulation();
-    setState(() => _step = WizardStep.vehicle);
+    setState(() => _step = _firstStep);
     Navigator.of(context).pop();
   }
+
+  WizardStep get _firstStep => controller.purpose == TripPurpose.personal
+      ? WizardStep.vehicle
+      : WizardStep.route;
 }
 
 class TripResultScreen extends StatelessWidget {

@@ -34,7 +34,7 @@ class ReviewStep extends StatelessWidget {
               ? const Text('Vehículo sin configurar')
               : Text(personal
                   ? '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km'
-                  : '${decimal(profile.consumptionLitersPer100Km)} L/100 km · ${money(profile.maintenanceCostPerKm)}/km · ${money(profile.dailyFixedCost)}/día · ${decimal(profile.capacityTons)} tn${profile.plate.isEmpty ? '' : ' · Patente: ${profile.plate}'}'),
+                  : 'Tu camión: ${decimal(profile.consumptionLitersPer100Km)} L/100 km'),
         ),
         const SizedBox(height: 10),
         _ReviewCard(

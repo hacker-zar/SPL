@@ -35,7 +35,8 @@ void main() {
       TripDecisionApp(supabaseInitializer: () => neverCompletes.future),
     );
 
-    expect(find.text('NetoKM'), findsOneWidget);
+    expect(find.text('Paso 1 de 4 · Ruta'), findsOneWidget);
+    expect(find.byTooltip('Historial'), findsOneWidget);
   });
 
   testWidgets('opening the app does not create an anonymous session',

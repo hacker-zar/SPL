@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/constants/app_constants.dart';
 import 'core/services/supabase_bootstrap.dart';
 import 'core/services/session_provider.dart';
 import 'core/theme/app_theme.dart';
@@ -11,6 +12,7 @@ import 'features/costs/domain/services/toll_estimator.dart';
 import 'features/history/data/memory_trip_repository.dart';
 import 'features/history/data/supabase_trip_repository.dart';
 import 'features/home/presentation/screens/home_screen.dart';
+import 'features/analysis/presentation/screens/trip_quote_screen.dart';
 import 'features/route_planning/data/nominatim_geocoding_service.dart';
 import 'features/route_planning/data/osrm_route_service.dart';
 import 'features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
@@ -101,7 +103,9 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       title: 'NetoKM',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
-      home: HomeScreen(controller: controller),
+      home: enablePersonalMode
+          ? HomeScreen(controller: controller)
+          : TripQuoteScreen(controller: controller),
     );
   }
 }
