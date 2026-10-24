@@ -14,6 +14,23 @@ class ManualRouteService implements RouteService {
       'No hay servicio de rutas disponible.',
     );
   }
+
+  RouteInfo createRoute({
+    required LatLngValue origin,
+    required LatLngValue destination,
+    required String originName,
+    required String destinationName,
+    required double distanceKm,
+    required double durationMinutes,
+  }) =>
+      RouteInfo(
+        originName: originName,
+        destinationName: destinationName,
+        origin: origin,
+        destination: destination,
+        distanceKm: distanceKm,
+        durationMinutes: durationMinutes,
+      );
 }
 
 class ManualRouteRequiredException implements Exception {

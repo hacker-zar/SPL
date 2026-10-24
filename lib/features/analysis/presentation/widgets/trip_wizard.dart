@@ -57,7 +57,9 @@ class TripWizard extends StatelessWidget {
           ),
           _WizardActions(
             step: step,
-            isRouteLoading: controller.isRouteLoading,
+            isRouteLoading: controller.isRouteLoading ||
+                controller.isOriginResolving ||
+                controller.isDestinationResolving,
             onBack: _index == 0
                 ? null
                 : () => onStepChanged(WizardStep.values[_index - 1]),
@@ -125,6 +127,7 @@ class _WizardActions extends StatelessWidget {
               if (onBack != null) const SizedBox(width: 10),
               Expanded(
                 child: FilledButton.icon(
+                  key: const ValueKey('wizardContinue'),
                   onPressed: blocked ? null : () async => onContinue(),
                   icon: Icon(
                     isReview ? Icons.analytics_outlined : Icons.arrow_forward,

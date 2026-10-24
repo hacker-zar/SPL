@@ -5,6 +5,7 @@ import 'core/services/supabase_bootstrap.dart';
 import 'core/theme/app_theme.dart';
 import 'features/analysis/domain/services/profitability_calculator.dart';
 import 'features/analysis/presentation/controllers/trip_quote_controller.dart';
+import 'features/analysis/presentation/screens/trip_quote_screen.dart';
 import 'features/costs/domain/models/cost_inputs.dart';
 import 'features/costs/domain/services/toll_estimator.dart';
 import 'features/history/data/memory_trip_repository.dart';
@@ -121,11 +122,16 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       theme: AppTheme.dark(),
       home: controller == null
           ? const _StartupScreen()
-          : HomeScreen(
-              controller: controller!,
-              personalModeEnabled: enablePersonalMode,
-              feedbackWhatsAppNumber: feedbackWhatsAppNumber,
-            ),
+          : enablePersonalMode
+              ? HomeScreen(
+                  controller: controller!,
+                  personalModeEnabled: true,
+                  feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+                )
+              : TripQuoteScreen(
+                  controller: controller!,
+                  feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+                ),
     );
   }
 }

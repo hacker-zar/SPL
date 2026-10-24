@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/money_format.dart';
+import '../../../../core/utils/parse_amount.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../controllers/trip_quote_controller.dart';
@@ -90,19 +91,23 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
               _NumberField(
                 controller: flatRateController,
                 label: 'Precio del viaje',
-                onChanged: controller.setFlatRate,
+                onChanged: (value) =>
+                    _setValue('flatRate', value, controller.setFlatRate),
               )
             else if (!personal) ...[
               _NumberField(
                 controller: tonsController,
                 label: 'Toneladas',
-                onChanged: controller.setTons,
+                currency: false,
+                onChanged: (value) =>
+                    _setValue('tons', value, controller.setTons),
               ),
               const SizedBox(height: 10),
               _NumberField(
                 controller: pricePerTonController,
                 label: 'Precio por tonelada',
-                onChanged: controller.setPricePerTon,
+                onChanged: (value) =>
+                    _setValue('pricePerTon', value, controller.setPricePerTon),
               ),
             ],
             if (overCapacity) ...[
@@ -116,7 +121,10 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
             _NumberField(
               controller: fuelPriceController,
               label: 'Combustible por litro',
-              onChanged: controller.setFuelPrice,
+              positive: true,
+              onChanged: (value) => _setValue(
+                  'fuelPrice', value, controller.setFuelPrice,
+                  positive: true),
             ),
             if (!personal && controller.pricingMode == PricingMode.perTon) ...[
               const SizedBox(height: 12),
@@ -130,7 +138,8 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
               controller: tollsController,
               label:
                   'Peajes (total del viaje, incluida la vuelta si corresponde)',
-              onChanged: controller.setTolls,
+              onChanged: (value) =>
+                  _setValue('tolls', value, controller.setTolls),
               trailing: tollEstimate == null
                   ? null
                   : IconButton(
@@ -162,23 +171,18 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
             const SizedBox(height: 10),
             _NumberField(
               controller: allowancesController,
-              label: personal
-                  ? 'Otros gastos (comida, alojamiento)'
-                  : 'Viáticos',
-              onChanged: controller.setAllowances,
+              label:
+                  personal ? 'Otros gastos (comida, alojamiento)' : 'Viáticos',
+              onChanged: (value) =>
+                  _setValue('allowances', value, controller.setAllowances),
             ),
             if (personal) ...[
               const SizedBox(height: 10),
-              TextField(
+              _TravelerField(
                 controller: travelersController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Cantidad de personas que comparten los gastos',
-                  helperText: 'Mínimo: 1 persona.',
-                ),
-                onChanged: (value) => controller.setTravelers(
-                  int.tryParse(value) ?? 1,
-                ),
+                onChanged: controller.setTravelers,
+                onValidityChanged: (valid) =>
+                    controller.setOfferFieldValidity('travelers', valid),
               ),
             ],
           ],
@@ -186,34 +190,112 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
       ),
     );
   }
+
+  void _setValue(String name, double? value, ValueChanged<double> setter,
+      {bool positive = false}) {
+    final valid = value != null && (positive ? value > 0 : value >= 0);
+    controller.setOfferFieldValidity(name, valid);
+    if (valid) setter(value);
+  }
 }
 
-class _NumberField extends StatelessWidget {
+class _NumberField extends StatefulWidget {
   const _NumberField({
     required this.controller,
     required this.label,
     required this.onChanged,
+    this.currency = true,
+    this.positive = false,
     this.trailing,
   });
 
   final TextEditingController controller;
   final String label;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double?> onChanged;
+  final bool currency;
+  final bool positive;
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(labelText: label, suffixIcon: trailing),
-      onChanged: (value) => onChanged(_parseNumber(value)),
-    );
-  }
+  State<_NumberField> createState() => _NumberFieldState();
 }
 
-double _parseNumber(String value) =>
-    double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
+class _NumberFieldState extends State<_NumberField> {
+  double? parsed;
+  bool invalid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    parsed = parseAmount(widget.controller.text);
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+        controller: widget.controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: widget.label,
+          suffixIcon: widget.trailing,
+          errorText: invalid ? 'Ingresá un número válido.' : null,
+          helperText: !invalid && parsed != null
+              ? (widget.currency ? money(parsed!) : decimal(parsed!))
+              : null,
+        ),
+        onChanged: (text) {
+          final value = parseAmount(text);
+          final valid =
+              value != null && (widget.positive ? value > 0 : value >= 0);
+          setState(() {
+            parsed = value;
+            invalid = !valid;
+          });
+          widget.onChanged(valid ? value : null);
+        },
+      );
+}
+
+class _TravelerField extends StatefulWidget {
+  const _TravelerField(
+      {required this.controller,
+      required this.onChanged,
+      required this.onValidityChanged});
+  final TextEditingController controller;
+  final ValueChanged<int> onChanged;
+  final ValueChanged<bool> onValidityChanged;
+  @override
+  State<_TravelerField> createState() => _TravelerFieldState();
+}
+
+class _TravelerFieldState extends State<_TravelerField> {
+  bool invalid = false;
+  int? parsed;
+  @override
+  Widget build(BuildContext context) => TextField(
+        controller: widget.controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: 'Cantidad de personas que comparten los gastos',
+          helperText: invalid
+              ? null
+              : 'Mínimo: 1 persona${parsed == null ? '' : ' · $parsed'}',
+          errorText:
+              invalid ? 'Ingresá una cantidad entera de al menos 1.' : null,
+        ),
+        onChanged: (text) {
+          final amount = parseAmount(text);
+          final count = amount?.toInt();
+          final valid =
+              amount != null && count != null && count == amount && count >= 1;
+          setState(() {
+            invalid = !valid;
+            parsed = valid ? count : null;
+          });
+          widget.onValidityChanged(valid);
+          if (valid) widget.onChanged(count);
+        },
+      );
+}
 
 String _numberText(double value) => value == 0
     ? ''

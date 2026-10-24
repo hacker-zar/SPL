@@ -116,6 +116,49 @@ void main() {
     expect(find.text('MARGEN'), findsNothing);
     controller.dispose();
   });
+
+  testWidgets(
+      'uses the three profitability statuses and hides unavailable actions',
+      (tester) async {
+    final repository = MemoryTripRepository();
+    await repository.save(
+        _record(id: 'go', origin: 'Go', destination: 'B', profit: 180000));
+    await repository.save(_record(
+        id: 'low',
+        origin: 'Low',
+        destination: 'B',
+        profit: 20000,
+        marginPercent: 5));
+    await repository.save(
+        _record(id: 'loss', origin: 'Loss', destination: 'B', profit: -30000));
+    final controller = _controller(repository)..load();
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.dark(),
+      home: HistoryScreen(
+        controller: controller,
+        onOpenTrip: (_) async {},
+        onDuplicateTrip: (_) async {},
+        onStartTrip: () async {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+    controller.vehicleProfile = null;
+    controller.notifyListeners();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Conviene', skipOffstage: false), findsNWidgets(2));
+    expect(find.text('Margen bajo', skipOffstage: false), findsNWidgets(2));
+    expect(find.text('No conviene', skipOffstage: false), findsNWidgets(2));
+    expect(find.text('Eliminar'), findsNothing);
+    expect(find.text('Compartir'), findsNothing);
+
+    await tester.tap(find.text('Margen bajo').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Low → B'), findsOneWidget);
+    expect(find.text('Go → B'), findsNothing);
+    expect(find.text('Loss → B'), findsNothing);
+    controller.dispose();
+  });
 }
 
 TripQuoteController _controller(MemoryTripRepository repository) {
@@ -138,6 +181,7 @@ TripRecord _record({
   required String destination,
   required double profit,
   TripPurpose purpose = TripPurpose.freight,
+  double? marginPercent,
 }) {
   return TripRecord(
     id: id,
@@ -160,6 +204,6 @@ TripRecord _record({
     income: 800000,
     totalCosts: 800000 - profit,
     netProfit: profit,
-    marginPercent: profit / 8000,
+    marginPercent: marginPercent ?? profit / 8000,
   );
 }

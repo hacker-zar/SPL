@@ -155,12 +155,14 @@ class TripResultScreen extends StatelessWidget {
     required this.onNewSimulation,
     this.feedbackWhatsAppNumber = '',
     this.onAddToComparison,
+    this.popAfterNewSimulation = true,
     super.key,
   });
 
   final TripQuoteController controller;
   final VoidCallback onNewSimulation;
   final ValueChanged<ComparisonTrip>? onAddToComparison;
+  final bool popAfterNewSimulation;
   final String feedbackWhatsAppNumber;
 
   @override
@@ -189,6 +191,10 @@ class TripResultScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
+                if (controller.errorMessage != null) ...[
+                  _SaveErrorBanner(message: controller.errorMessage!),
+                  const SizedBox(height: 12),
+                ],
                 if (personal) ...[
                   _ResultCard(
                     title: 'Costo total del viaje',
@@ -280,10 +286,12 @@ class TripResultScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _ResultCard(
-                    title: 'Precio de equilibrio',
-                    child: Text(
-                      'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.',
-                    ),
+                    title: controller.pricingMode == PricingMode.perTon
+                        ? 'Precio mínimo por tonelada'
+                        : 'Precio de equilibrio',
+                    child: Text(controller.pricingMode == PricingMode.perTon
+                        ? 'A ${money(analysis.minimumPricePerTon)} por tonelada cubrís los costos: no ganás ni perdés.'
+                        : 'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.'),
                   ),
                   if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
                       0) ...[
@@ -326,7 +334,9 @@ class TripResultScreen extends StatelessWidget {
                   onPressed: () {
                     controller.resetSimulation();
                     onNewSimulation();
-                    Navigator.of(context).pop();
+                    if (popAfterNewSimulation) {
+                      Navigator.of(context).pop();
+                    }
                   },
                   icon: const Icon(Icons.add_road_outlined),
                   label: const Text('Nueva simulación'),
@@ -359,13 +369,48 @@ class TripResultScreen extends StatelessWidget {
   }
 
   Future<void> _saveTripAndReturnHome(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     await controller.saveCurrentTrip();
-    if (!context.mounted || controller.errorMessage != null) {
+    if (!context.mounted) return;
+    if (controller.errorMessage != null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(controller.errorMessage!)),
+      );
       return;
     }
 
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Simulación guardada.')),
+    );
     controller.resetSimulation();
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+}
+
+class _SaveErrorBanner extends StatelessWidget {
+  const _SaveErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.error;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -378,16 +423,12 @@ class _ProfitSummary extends StatelessWidget {
 
   final TripAnalysis analysis;
   final double? distanceKm;
-  final double? durationDays;
+  final int? durationDays;
 
   @override
   Widget build(BuildContext context) {
-    final days = durationDays?.ceil();
-    final statusLabel = switch (analysis.status) {
-      ProfitabilityStatus.profitable => 'Margen saludable',
-      ProfitabilityStatus.low => 'Margen bajo',
-      ProfitabilityStatus.loss => 'No cubre los costos',
-    };
+    final days = durationDays;
+    final statusLabel = analysis.status.label;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

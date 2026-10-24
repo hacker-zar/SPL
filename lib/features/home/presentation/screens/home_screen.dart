@@ -105,7 +105,19 @@ class HomeScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (context) => TripResultScreen(
           controller: controller,
-          onNewSimulation: () {},
+          popAfterNewSimulation: false,
+          onNewSimulation: () {
+            controller.startTrip(TripPurpose.freight);
+            Navigator.of(context).pushReplacement<void, void>(
+              MaterialPageRoute(
+                builder: (context) => TripQuoteScreen(
+                  controller: controller,
+                  personalModeEnabled: personalModeEnabled,
+                  feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+                ),
+              ),
+            );
+          },
           feedbackWhatsAppNumber: feedbackWhatsAppNumber,
         ),
       ),
