@@ -9,10 +9,44 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="NetoKM">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="manifest" href="manifest.json">
   <title>NetoKM</title>
+  <style>
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 18px;
+      background: #0b0e10;
+      color: #f4f4f2;
+      font: 700 24px system-ui, sans-serif;
+    }
+    #splash-indicator {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #2c3338;
+      border-top-color: #f5c518;
+      border-radius: 50%;
+      animation: splash-spin 0.8s linear infinite;
+    }
+    @keyframes splash-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+  <div id="splash" role="status" aria-label="Cargando NetoKM">
+    Netokm
+    <div id="splash-indicator" aria-hidden="true"></div>
+  </div>
+  <script>
+    const removeSplash = () => document.getElementById('splash')?.remove();
+    window.addEventListener('flutter-first-frame', removeSplash);
+    window.setTimeout(removeSplash, 15000);
+  </script>
   <script src="passkeys_bundle.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
