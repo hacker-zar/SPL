@@ -301,6 +301,10 @@ class TripResultScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_hasOutOfScaleValues(analysis)) ...[
+                  _outOfScaleNotice(context),
+                  const SizedBox(height: 12),
+                ],
                 _DecisionHeader(
                   status: analysis.status,
                   label: _statusLabel(analysis.status),
@@ -349,6 +353,10 @@ class TripResultScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_hasOutOfScaleValues(analysis)) ...[
+                _outOfScaleNotice(context),
+                const SizedBox(height: 12),
+              ],
               _DecisionHeader(
                 status: analysis.status,
                 label: _statusLabel(analysis.status),
@@ -396,6 +404,40 @@ class TripResultScreen extends StatelessWidget {
         perTon
             ? '${money(analysis.minimumPricePerTon)} por tonelada'
             : 'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.',
+      ),
+    );
+  }
+
+  bool _hasOutOfScaleValues(TripAnalysis analysis) {
+    final costs = analysis.totalCosts;
+    if (costs <= 0) return false;
+    return analysis.netProfit > 20 * costs ||
+        analysis.marginPercent > 90 ||
+        analysis.grossIncome < 0.01 * costs;
+  }
+
+  Widget _outOfScaleNotice(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Estos números parecen fuera de lo normal. Revisá los importes que cargaste.',
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Revisar importes'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

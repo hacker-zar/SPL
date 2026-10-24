@@ -41,23 +41,21 @@ class OsrmRouteService implements RouteService {
     if (payload['code'] != 'Ok') {
       throw RouteException(
         payload['message'] as String? ??
-            'OSRM no encontro una ruta para esos puntos.',
+            'OSRM no encontró una ruta para esos puntos.',
       );
     }
 
-    final route = (payload['routes'] as List<dynamic>).first
-        as Map<String, dynamic>;
+    final route =
+        (payload['routes'] as List<dynamic>).first as Map<String, dynamic>;
     final geometry = route['geometry'] as Map<String, dynamic>;
     final coordinatesList = geometry['coordinates'] as List<dynamic>;
-    final polyline = coordinatesList
-        .map((item) {
-          final pair = item as List<dynamic>;
-          return LatLngValue(
-            latitude: (pair[1] as num).toDouble(),
-            longitude: (pair[0] as num).toDouble(),
-          );
-        })
-        .toList();
+    final polyline = coordinatesList.map((item) {
+      final pair = item as List<dynamic>;
+      return LatLngValue(
+        latitude: (pair[1] as num).toDouble(),
+        longitude: (pair[0] as num).toDouble(),
+      );
+    }).toList();
 
     return RouteInfo(
       originName: originName?.trim().isNotEmpty == true

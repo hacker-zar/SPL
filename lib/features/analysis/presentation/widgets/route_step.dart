@@ -141,6 +141,10 @@ class _RouteStepState extends State<RouteStep> {
           label: 'Origen',
           controller: originController,
           isLoading: controller.isOriginResolving,
+          detail: _pointDetail(controller.originPoint),
+          confirmationMessage:
+              controller.originNeedsConfirmation ? 'Confirmá el origen.' : null,
+          onChanged: controller.setOriginText,
           onSearch: () async {
             await controller.resolveOrigin(originController.text);
             if (mounted) {
@@ -153,16 +157,35 @@ class _RouteStepState extends State<RouteStep> {
           label: 'Destino',
           controller: destinationController,
           isLoading: controller.isDestinationResolving,
+          detail: _pointDetail(controller.destinationPoint),
+          confirmationMessage: controller.destinationNeedsConfirmation
+              ? 'Confirmá el destino.'
+              : null,
+          onChanged: controller.setDestinationText,
           onSearch: () =>
               controller.resolveDestination(destinationController.text),
         ),
         const SizedBox(height: 10),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(personal ? 'Incluir la vuelta' : 'Vuelvo vacío'),
-          value: controller.emptyReturn,
-          onChanged: controller.setEmptyReturn,
-        ),
+        if (personal)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Incluir la vuelta'),
+            value: controller.emptyReturn,
+            onChanged: controller.setEmptyReturn,
+          )
+        else
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: false, label: Text('Solo ida')),
+              ButtonSegment(
+                value: true,
+                label: Text('Ida y vuelta vacío'),
+              ),
+            ],
+            selected: {controller.emptyReturn},
+            onSelectionChanged: (selected) =>
+                controller.setEmptyReturn(selected.first),
+          ),
         if (!personal)
           const Padding(
             padding: EdgeInsets.only(left: 16),
@@ -181,6 +204,7 @@ class _RouteStepState extends State<RouteStep> {
         ],
         if (route != null) ...[
           const SizedBox(height: 10),
+          Text('${route.originName} → ${route.destinationName}'),
           Text(
             '${decimal(route.distanceKm)} km en total · ${route.durationDays.ceil()} ${route.durationDays.ceil() == 1 ? 'día' : 'días'} estimados',
             style: Theme.of(context).textTheme.titleMedium,
@@ -196,12 +220,18 @@ class _LocationInput extends StatelessWidget {
     required this.label,
     required this.controller,
     required this.isLoading,
+    required this.detail,
+    required this.confirmationMessage,
+    required this.onChanged,
     required this.onSearch,
   });
 
   final String label;
   final TextEditingController controller;
   final bool isLoading;
+  final String? detail;
+  final String? confirmationMessage;
+  final ValueChanged<String> onChanged;
   final Future<void> Function() onSearch;
 
   @override
@@ -214,6 +244,7 @@ class _LocationInput extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: 'Escribí o tocá el mapa',
+        helperText: confirmationMessage ?? detail,
         suffixIcon: isLoading
             ? const Padding(
                 padding: EdgeInsets.all(14),
@@ -228,10 +259,15 @@ class _LocationInput extends StatelessWidget {
                 onPressed: isLoading ? null : () async => onSearch(),
               ),
       ),
+      onChanged: onChanged,
       onSubmitted: isLoading ? null : (_) async => onSearch(),
     );
   }
 }
+
+String? _pointDetail(LatLngValue? point) => point == null
+    ? null
+    : 'Coordenadas: ${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
 
 class _RoutePickerMap extends StatelessWidget {
   const _RoutePickerMap({

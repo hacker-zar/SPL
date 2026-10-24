@@ -147,7 +147,7 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
         if (controller.costs.tolls == 0)
           const Padding(
             padding: EdgeInsets.only(top: 6),
-            child: Text('Sin peajes cargados. Si tu ruta tiene, cargalos.'),
+            child: Text('Sin peajes cargados. Si tu ruta tiene, cargá peajes.'),
           )
         else if (!personal && tollEstimate != null)
           Padding(
@@ -245,6 +245,9 @@ class _NumberField extends StatelessWidget {
         labelText: label,
         suffixText: unit,
         suffixIcon: trailing,
+        helperText: _hasMoreThanNineDigits(controller.text)
+            ? 'El importe supera las 9 cifras; revisá si está bien.'
+            : null,
       ),
       onChanged: (value) => onChanged(_parseNumber(value)),
     );
@@ -272,6 +275,11 @@ class _FormSection extends StatelessWidget {
 
 double _parseNumber(String value) =>
     double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
+
+bool _hasMoreThanNineDigits(String value) {
+  final parsed = double.tryParse(value.replaceAll(',', '.').trim());
+  return parsed != null && parsed.abs() >= 1000000000;
+}
 
 String _numberText(double value) => value == 0
     ? ''

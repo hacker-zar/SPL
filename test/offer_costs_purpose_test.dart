@@ -30,7 +30,7 @@ void main() {
 
     expect(find.text('Mostrar costos y ajustes'), findsNothing);
     expect(find.text(tollsLabel), findsOneWidget);
-    expect(find.text('Sin peajes cargados. Si tu ruta tiene, cargalos.'),
+    expect(find.text('Sin peajes cargados. Si tu ruta tiene, cargá peajes.'),
         findsOneWidget);
 
     final tollField = find.byWidgetPredicate((widget) =>
@@ -38,7 +38,7 @@ void main() {
     await tester.enterText(tollField, '100');
     await tester.pump();
 
-    expect(find.text('Sin peajes cargados. Si tu ruta tiene, cargalos.'),
+    expect(find.text('Sin peajes cargados. Si tu ruta tiene, cargá peajes.'),
         findsNothing);
     controller.dispose();
   });

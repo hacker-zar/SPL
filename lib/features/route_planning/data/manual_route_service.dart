@@ -20,4 +20,7 @@ class ManualRouteRequiredException implements Exception {
   ManualRouteRequiredException(this.message);
 
   final String message;
+
+  @override
+  String toString() => message;
 }

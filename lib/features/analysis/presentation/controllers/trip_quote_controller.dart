@@ -37,6 +37,11 @@ class TripQuoteController extends ChangeNotifier {
 
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   bool _historyLoaded = false;
+  int _originRevision = 0;
+  int _destinationRevision = 0;
+  int _routeRevision = 0;
+  Future<void> _pendingOriginName = Future<void>.value();
+  Future<void> _pendingDestinationName = Future<void>.value();
 
   VehicleProfile? vehicleProfile;
   VehicleProfile? personalVehicle;
@@ -77,6 +82,10 @@ class TripQuoteController extends ChangeNotifier {
     }
     return emptyReturn ? currentRoute.withEmptyReturn() : currentRoute;
   }
+
+  bool get originNeedsConfirmation => origin.isNotEmpty && originPoint == null;
+  bool get destinationNeedsConfirmation =>
+      destination.isNotEmpty && destinationPoint == null;
 
   TripInputs get tripInputs {
     return TripInputs(
@@ -155,7 +164,7 @@ class TripQuoteController extends ChangeNotifier {
       return _setValidationError(
         purpose == TripPurpose.personal
             ? 'Cargá consumo y mantenimiento del vehículo para continuar.'
-            : 'Carga consumo, mantenimiento y capacidad del vehículo para continuar.',
+            : 'Cargá el consumo, mantenimiento y la capacidad del camión para continuar.',
       );
     }
     return _clearValidationError();
@@ -163,7 +172,8 @@ class TripQuoteController extends ChangeNotifier {
 
   bool validateRouteStep() {
     if (originPoint == null || destinationPoint == null) {
-      return _setValidationError('Selecciona origen y destino para continuar.');
+      return _setValidationError(
+          'Confirmá el origen y el destino para continuar.');
     }
     if (isRouteLoading) {
       return _setValidationError(
@@ -178,7 +188,7 @@ class TripQuoteController extends ChangeNotifier {
 
   bool validateOfferStep() {
     if (purpose == TripPurpose.freight && !tripInputs.isValid) {
-      return _setValidationError('Carga un precio válido para continuar.');
+      return _setValidationError('Cargá un precio válido para continuar.');
     }
     if (costs.fuelPricePerLiter < 0 ||
         costs.tolls < 0 ||
@@ -212,6 +222,11 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void resetSimulation() {
+    _originRevision++;
+    _destinationRevision++;
+    _pendingOriginName = Future<void>.value();
+    _pendingDestinationName = Future<void>.value();
+    _routeRevision++;
     origin = '';
     destination = '';
     originPoint = null;
@@ -221,7 +236,6 @@ class TripQuoteController extends ChangeNotifier {
     tons = 0;
     pricePerTon = 0;
     travelers = 1;
-    emptyReturn = false;
     isRouteLoading = false;
     isOriginResolving = false;
     isDestinationResolving = false;
@@ -286,20 +300,56 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void setOriginPoint(LatLngValue point) {
+    final revision = ++_originRevision;
     originPoint = point;
-    origin = _formatPoint(point);
-    route = null;
-    tollEstimate = null;
+    origin = 'Punto elegido en el mapa';
+    _invalidateRoute();
+    errorMessage = null;
     _calculateRouteIfReady();
     notifyListeners();
+    isOriginResolving = false;
+    _pendingOriginName = _resolveMapPointName(
+      point,
+      isOrigin: true,
+      revision: revision,
+    );
   }
 
   void setDestinationPoint(LatLngValue point) {
+    final revision = ++_destinationRevision;
     destinationPoint = point;
-    destination = _formatPoint(point);
-    route = null;
-    tollEstimate = null;
+    destination = 'Punto elegido en el mapa';
+    _invalidateRoute();
+    errorMessage = null;
     _calculateRouteIfReady();
+    notifyListeners();
+    isDestinationResolving = false;
+    _pendingDestinationName = _resolveMapPointName(
+      point,
+      isOrigin: false,
+      revision: revision,
+    );
+  }
+
+  void setOriginText(String value) {
+    if (origin == value && originPoint == null) return;
+    if (origin != value) _originRevision++;
+    origin = value;
+    originPoint = null;
+    isOriginResolving = false;
+    _invalidateRoute();
+    errorMessage = value.trim().isEmpty ? null : 'Confirmá el origen.';
+    notifyListeners();
+  }
+
+  void setDestinationText(String value) {
+    if (destination == value && destinationPoint == null) return;
+    if (destination != value) _destinationRevision++;
+    destination = value;
+    destinationPoint = null;
+    isDestinationResolving = false;
+    _invalidateRoute();
+    errorMessage = value.trim().isEmpty ? null : 'Confirmá el destino.';
     notifyListeners();
   }
 
@@ -307,27 +357,45 @@ class TripQuoteController extends ChangeNotifier {
     final origin = originPoint;
     final destination = destinationPoint;
     if (origin == null || destination == null) {
-      errorMessage = 'Selecciona origen y destino en el mapa.';
+      errorMessage = 'Confirmá el origen y el destino.';
       notifyListeners();
       return;
     }
+    final revision = ++_routeRevision;
     isRouteLoading = true;
     errorMessage = null;
     notifyListeners();
 
     try {
-      route = await routeService.calculateRoute(
+      final calculatedRoute = await routeService.calculateRoute(
         origin: origin,
         destination: destination,
         originName: this.origin,
         destinationName: this.destination,
       );
-      _applyEstimatedTolls(force: !tollsEditedManually || costs.tolls == 0);
+      if (revision == _routeRevision &&
+          _samePoint(originPoint, origin) &&
+          _samePoint(destinationPoint, destination)) {
+        route = RouteInfo(
+          originName: this.origin,
+          destinationName: this.destination,
+          origin: calculatedRoute.origin,
+          destination: calculatedRoute.destination,
+          distanceKm: calculatedRoute.distanceKm,
+          durationMinutes: calculatedRoute.durationMinutes,
+          polyline: calculatedRoute.polyline,
+        );
+        _applyEstimatedTolls(force: !tollsEditedManually || costs.tolls == 0);
+      }
     } on Object catch (error) {
-      errorMessage = error.toString();
+      if (revision == _routeRevision) {
+        errorMessage = _readableError(error);
+      }
     } finally {
-      isRouteLoading = false;
-      notifyListeners();
+      if (revision == _routeRevision) {
+        isRouteLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -395,11 +463,11 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   Future<void> saveCurrentTrip() async {
-    final record = createCurrentTripRecord();
+    var record = createCurrentTripRecord();
     if (record == null) {
       errorMessage = purpose == TripPurpose.personal
-          ? 'Completa ruta y perfil del vehículo antes de guardar.'
-          : 'Completa ruta, precio y perfil del vehículo antes de guardar.';
+          ? 'Completá la ruta y el perfil del vehículo antes de guardar.'
+          : 'Completá la ruta, el precio y el perfil del vehículo antes de guardar.';
       notifyListeners();
       return;
     }
@@ -409,9 +477,17 @@ class TripQuoteController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await Future.wait([_pendingOriginName, _pendingDestinationName]);
+      record = createCurrentTripRecord();
+      if (record == null) {
+        errorMessage =
+            'Completá la ruta, el precio y el perfil del vehículo antes de guardar.';
+        return;
+      }
       await tripRepository.save(record);
     } on Object catch (error) {
-      errorMessage = 'No se pudo guardar la simulacion: $error';
+      errorMessage =
+          'No se pudo guardar la simulación: ${_readableError(error)}';
     } finally {
       isSaving = false;
       notifyListeners();
@@ -436,6 +512,12 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void openTrip(TripRecord record) {
+    _originRevision++;
+    _destinationRevision++;
+    _routeRevision++;
+    _pendingOriginName = Future<void>.value();
+    _pendingDestinationName = Future<void>.value();
+    isRouteLoading = false;
     route = record.route;
     purpose = record.trip.purpose;
     origin = record.route.originName;
@@ -477,14 +559,11 @@ class TripQuoteController extends ChangeNotifier {
     }
   }
 
-  String _formatPoint(LatLngValue point) {
-    return '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
-  }
-
   Future<void> _resolveLocation({
     required String input,
     required bool isOrigin,
   }) async {
+    final revision = isOrigin ? _originRevision : _destinationRevision;
     if (isOrigin) {
       isOriginResolving = true;
     } else {
@@ -495,6 +574,11 @@ class TripQuoteController extends ChangeNotifier {
 
     try {
       final result = await geocodingService.resolve(input);
+      final isCurrent = isOrigin
+          ? revision == _originRevision && origin.trim() == input.trim()
+          : revision == _destinationRevision &&
+              destination.trim() == input.trim();
+      if (!isCurrent) return;
       if (isOrigin) {
         originPoint = result.point;
         origin = result.name;
@@ -502,19 +586,74 @@ class TripQuoteController extends ChangeNotifier {
         destinationPoint = result.point;
         destination = result.name;
       }
-      route = null;
-      tollEstimate = null;
+      _invalidateRoute();
+      errorMessage = null;
       _calculateRouteIfReady();
     } on Object catch (error) {
-      errorMessage = error.toString();
+      final isCurrent = isOrigin
+          ? revision == _originRevision
+          : revision == _destinationRevision;
+      if (isCurrent) errorMessage = _readableError(error);
     } finally {
+      final isCurrent = isOrigin
+          ? revision == _originRevision
+          : revision == _destinationRevision;
+      if (isCurrent) {
+        if (isOrigin) {
+          isOriginResolving = false;
+        } else {
+          isDestinationResolving = false;
+        }
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _resolveMapPointName(
+    LatLngValue point, {
+    required bool isOrigin,
+    required int revision,
+  }) async {
+    try {
+      final result = await geocodingService.reverse(point);
+      final currentPoint = isOrigin ? originPoint : destinationPoint;
+      final currentRevision = isOrigin ? _originRevision : _destinationRevision;
+      if (revision != currentRevision || !_samePoint(currentPoint, point)) {
+        return;
+      }
       if (isOrigin) {
-        isOriginResolving = false;
+        origin = result.name;
       } else {
-        isDestinationResolving = false;
+        destination = result.name;
+      }
+      final currentRoute = route;
+      if (currentRoute != null) {
+        route = RouteInfo(
+          originName: origin,
+          destinationName: destination,
+          origin: currentRoute.origin,
+          destination: currentRoute.destination,
+          distanceKm: currentRoute.distanceKm,
+          durationMinutes: currentRoute.durationMinutes,
+          polyline: currentRoute.polyline,
+        );
       }
       notifyListeners();
+    } on Object {
+      // Keep the provisional map label when reverse geocoding is unavailable.
     }
+  }
+
+  bool _samePoint(LatLngValue? first, LatLngValue second) =>
+      first?.latitude == second.latitude &&
+      first?.longitude == second.longitude;
+
+  String _readableError(Object error) {
+    final message = error.toString();
+    return message.replaceFirst(
+      RegExp(r'^[A-Za-z_][A-Za-z0-9_]*(?:Exception|Error):\s*'),
+      '',
+    );
   }
 
   void _calculateRouteIfReady() {
@@ -522,6 +661,13 @@ class TripQuoteController extends ChangeNotifier {
       return;
     }
     unawaited(calculateRoute());
+  }
+
+  void _invalidateRoute() {
+    _routeRevision++;
+    route = null;
+    tollEstimate = null;
+    isRouteLoading = false;
   }
 
   @override
