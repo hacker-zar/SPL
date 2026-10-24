@@ -280,10 +280,12 @@ class TripResultScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _ResultCard(
-                    title: 'Precio de equilibrio',
-                    child: Text(
-                      'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.',
-                    ),
+                    title: controller.pricingMode == PricingMode.perTon
+                        ? 'Precio mínimo por tonelada'
+                        : 'Precio de equilibrio',
+                    child: Text(controller.pricingMode == PricingMode.perTon
+                        ? 'A ${money(analysis.minimumPricePerTon)} por tonelada cubrís los costos: no ganás ni perdés.'
+                        : 'A ${money(analysis.breakEvenPrice)} cubrís los costos: no ganás ni perdés.'),
                   ),
                   if ((controller.vehicleProfile?.dailyFixedCost ?? 0) ==
                       0) ...[
