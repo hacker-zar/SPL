@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/services/supabase_bootstrap.dart';
+import 'core/services/session_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/analysis/domain/services/profitability_calculator.dart';
 import 'features/analysis/presentation/controllers/trip_quote_controller.dart';
@@ -9,58 +10,53 @@ import 'features/costs/domain/models/cost_inputs.dart';
 import 'features/costs/domain/services/toll_estimator.dart';
 import 'features/history/data/memory_trip_repository.dart';
 import 'features/history/data/supabase_trip_repository.dart';
-import 'features/history/domain/repositories/trip_repository.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/route_planning/data/nominatim_geocoding_service.dart';
 import 'features/route_planning/data/osrm_route_service.dart';
 import 'features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
 import 'features/vehicle_profile/data/supabase_vehicle_profile_repository.dart';
-import 'features/vehicle_profile/domain/repositories/vehicle_profile_repository.dart';
 
 class TripDecisionApp extends StatefulWidget {
-  const TripDecisionApp({super.key});
+  const TripDecisionApp({
+    this.supabaseInitializer = SupabaseBootstrap.initialize,
+    this.anonymousSignIn,
+    super.key,
+  });
+
+  final Future<SupabaseClient?> Function() supabaseInitializer;
+  final AnonymousSignIn? anonymousSignIn;
 
   @override
   State<TripDecisionApp> createState() => _TripDecisionAppState();
 }
 
 class _TripDecisionAppState extends State<TripDecisionApp> {
-  TripQuoteController? controller;
+  late final TripQuoteController controller;
 
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    final clientFuture = widget.supabaseInitializer();
+    final sessionProvider = SessionProvider(
+      clientLoader: () => clientFuture,
+      anonymousSignIn: widget.anonymousSignIn,
+    );
+    controller = _createController(sessionProvider)
+      ..load()
+      ..loadHistory();
   }
 
-  Future<void> _initializeApp() async {
-    await SupabaseBootstrap.initialize();
-    if (!mounted) {
-      return;
-    }
-    setState(() => controller = _createController());
-  }
-
-  TripQuoteController _createController() {
-    final supabaseClient =
-        SupabaseBootstrap.isInitialized ? Supabase.instance.client : null;
-    final currentUserId = supabaseClient?.auth.currentUser?.id;
-
-    late final VehicleProfileRepository vehicleProfileRepository;
-    late final TripRepository tripRepository;
-    if (supabaseClient != null && currentUserId != null) {
-      vehicleProfileRepository = SupabaseVehicleProfileRepository(
-        client: supabaseClient,
-        userId: currentUserId,
-      );
-      tripRepository = SupabaseTripRepository(
-        client: supabaseClient,
-        userId: currentUserId,
-      );
-    } else {
-      vehicleProfileRepository = MemoryVehicleProfileRepository();
-      tripRepository = MemoryTripRepository();
-    }
+  TripQuoteController _createController(SessionProvider sessionProvider) {
+    final memoryVehicleRepository = MemoryVehicleProfileRepository();
+    final memoryTripRepository = MemoryTripRepository();
+    final vehicleProfileRepository = SupabaseVehicleProfileRepository(
+      sessionProvider: sessionProvider,
+      fallbackRepository: memoryVehicleRepository,
+    );
+    final tripRepository = SupabaseTripRepository(
+      sessionProvider: sessionProvider,
+      fallbackRepository: memoryTripRepository,
+    );
 
     const osrmBaseUrl = String.fromEnvironment(
       'OSRM_BASE_URL',
@@ -95,7 +91,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
 
   @override
   void dispose() {
-    controller?.dispose();
+    controller.dispose();
     super.dispose();
   }
 
@@ -105,26 +101,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       title: 'NetoKM',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
-      home: controller == null
-          ? const _StartupScreen()
-          : HomeScreen(controller: controller!),
-    );
-  }
-}
-
-class _StartupScreen extends StatelessWidget {
-  const _StartupScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(strokeWidth: 3),
-        ),
-      ),
+      home: HomeScreen(controller: controller),
     );
   }
 }

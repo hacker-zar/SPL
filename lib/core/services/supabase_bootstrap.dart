@@ -18,11 +18,15 @@ class SupabaseConfig {
 
 class SupabaseBootstrap {
   static bool isInitialized = false;
+  static Future<SupabaseClient?>? _initialization;
 
-  static Future<void> initialize() async {
+  static Future<SupabaseClient?> initialize() =>
+      _initialization ??= _initialize();
+
+  static Future<SupabaseClient?> _initialize() async {
     if (!SupabaseConfig.isConfigured) {
       debugPrint('Supabase disabled: missing SUPABASE_URL or key.');
-      return;
+      return null;
     }
 
     try {
@@ -31,23 +35,11 @@ class SupabaseBootstrap {
         publishableKey: SupabaseConfig.publishableKey,
       );
       isInitialized = true;
-      await _ensureSession();
+      return Supabase.instance.client;
     } on Object catch (error) {
       debugPrint('Supabase disabled until configuration is valid: $error');
       isInitialized = false;
-    }
-  }
-
-  static Future<void> _ensureSession() async {
-    final auth = Supabase.instance.client.auth;
-    if (auth.currentSession != null) {
-      return;
-    }
-
-    try {
-      await auth.signInAnonymously();
-    } on Object catch (error) {
-      debugPrint('Anonymous Supabase auth failed: $error');
+      return null;
     }
   }
 }

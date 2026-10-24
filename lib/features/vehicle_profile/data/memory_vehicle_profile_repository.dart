@@ -5,12 +5,7 @@ import '../domain/repositories/vehicle_profile_repository.dart';
 
 class MemoryVehicleProfileRepository implements VehicleProfileRepository {
   MemoryVehicleProfileRepository([VehicleProfile? initial])
-      : _profile = initial ??
-            const VehicleProfile(
-              consumptionLitersPer100Km: 34,
-              maintenanceCostPerKm: 120,
-              capacityTons: 28,
-            );
+      : _profile = initial;
 
   VehicleProfile? _profile;
   final StreamController<VehicleProfile?> _controller =
