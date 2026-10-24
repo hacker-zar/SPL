@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/money_format.dart';
+import '../../../../shared/widgets/responsive_body.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../../vehicle_profile/domain/models/vehicle_profile.dart';
@@ -16,70 +17,73 @@ class VehicleStep extends StatelessWidget {
     final personal = controller.purpose == TripPurpose.personal;
     final profile = controller.activeVehicle;
     final isComplete = profile?.isCompleteFor(controller.purpose) ?? false;
-    return _StepCard(
-      title: personal ? 'Mi vehículo' : 'Mi camión',
-      child: isComplete
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(personal
-                    ? 'Vehículo configurado ✓'
-                    : 'Camión configurado ✓'),
-                const SizedBox(height: 12),
-                _MetricGrid(
-                  children: [
-                    MetricTile(
-                      label: 'Consumo',
-                      value:
-                          '${decimal(profile!.consumptionLitersPer100Km)} L/100',
-                    ),
-                    MetricTile(
-                      label: 'Mantenimiento',
-                      value: '${money(profile.maintenanceCostPerKm)}/km',
-                    ),
-                    if (!personal)
+    return ResponsiveBody(
+      maxWidth: 900,
+      child: _StepCard(
+        title: personal ? 'Mi vehículo' : 'Mi camión',
+        child: isComplete
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(personal
+                      ? 'Vehículo configurado ✓'
+                      : 'Camión configurado ✓'),
+                  const SizedBox(height: 12),
+                  _MetricGrid(
+                    children: [
                       MetricTile(
-                        label: 'Capacidad',
-                        value: '${decimal(profile.capacityTons)} tn',
+                        label: 'Consumo',
+                        value:
+                            '${decimal(profile!.consumptionLitersPer100Km)} L/100',
                       ),
+                      MetricTile(
+                        label: 'Mantenimiento',
+                        value: '${money(profile.maintenanceCostPerKm)}/km',
+                      ),
+                      if (!personal)
+                        MetricTile(
+                          label: 'Capacidad',
+                          value: '${decimal(profile.capacityTons)} tn',
+                        ),
+                    ],
+                  ),
+                  if (!personal) ...[
+                    const SizedBox(height: 10),
+                    _PlateSummary(plate: profile.plate),
                   ],
-                ),
-                if (!personal) ...[
-                  const SizedBox(height: 10),
-                  _PlateSummary(plate: profile.plate),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => _editProfile(context, profile),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: Text(personal ? 'Editar vehículo' : 'Editar camión'),
+                  ),
                 ],
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _editProfile(context, profile),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: Text(personal ? 'Editar vehículo' : 'Editar camión'),
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  personal
-                      ? 'Cargá los datos de consumo y mantenimiento de tu vehículo.'
-                      : 'Cargá el consumo, mantenimiento y capacidad una sola vez.',
-                ),
-                if (personal) ...[
-                  const SizedBox(height: 4),
-                  const Text(
-                      'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    personal
+                        ? 'Cargá los datos de consumo y mantenimiento de tu vehículo.'
+                        : 'Cargá el consumo, mantenimiento y capacidad una sola vez.',
+                  ),
+                  if (personal) ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                        'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'),
+                  ],
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: () => _editProfile(context, profile),
+                    icon: Icon(personal
+                        ? Icons.directions_car_outlined
+                        : Icons.local_shipping_outlined),
+                    label: Text(
+                        personal ? 'Cargar mi vehículo' : 'Cargar mi camión'),
+                  ),
                 ],
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: () => _editProfile(context, profile),
-                  icon: Icon(personal
-                      ? Icons.directions_car_outlined
-                      : Icons.local_shipping_outlined),
-                  label: Text(
-                      personal ? 'Cargar mi vehículo' : 'Cargar mi camión'),
-                ),
-              ],
-            ),
+              ),
+      ),
     );
   }
 
@@ -371,16 +375,25 @@ class _PlateSummary extends StatelessWidget {
           children: [
             const Icon(Icons.pin_outlined, size: 20),
             const SizedBox(width: 10),
-            const Text('PATENTE',
-                style: TextStyle(fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text(
-              hasPlate ? plate : 'Sin cargar',
-              style: TextStyle(
-                color: hasPlate
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
+            const Expanded(
+              child: Text(
+                'PATENTE',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                hasPlate ? plate : 'Sin cargar',
+                textAlign: TextAlign.end,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: hasPlate
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],

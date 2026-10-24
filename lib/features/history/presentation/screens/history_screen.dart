@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
+import '../../../../shared/widgets/responsive_body.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../domain/models/trip_record.dart';
@@ -58,50 +59,56 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Historial')),
       body: SafeArea(
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) {
-            if (controller.isHistoryLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final trips = _visibleTrips;
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: _HistoryControls(
-                    searchController: searchController,
-                    filter: filter,
-                    sort: sort,
-                    onQueryChanged: (_) => setState(() {}),
-                    onFilterChanged: (value) => setState(() => filter = value),
-                    onSortChanged: (value) => setState(() => sort = value),
+        child: ResponsiveBody(
+          maxWidth: 900,
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) {
+              if (controller.isHistoryLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final trips = _visibleTrips;
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: _HistoryControls(
+                      searchController: searchController,
+                      filter: filter,
+                      sort: sort,
+                      onQueryChanged: (_) => setState(() {}),
+                      onFilterChanged: (value) =>
+                          setState(() => filter = value),
+                      onSortChanged: (value) => setState(() => sort = value),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: controller.history.isEmpty
-                      ? _EmptyHistory(onStartTrip: widget.onStartTrip)
-                      : trips.isEmpty
-                          ? const _NoMatches()
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                              itemCount: trips.length,
-                              itemBuilder: (context, index) => Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _HistoryTripCard(
-                                  trip: trips[index],
-                                  onOpen: () => widget.onOpenTrip(trips[index]),
-                                  onDuplicate: () =>
-                                      widget.onDuplicateTrip(trips[index]),
-                                  onDelete: () => _showDeleteUnavailable(),
-                                  onShare: () => _showSharePlaceholder(),
+                  Expanded(
+                    child: controller.history.isEmpty
+                        ? _EmptyHistory(onStartTrip: widget.onStartTrip)
+                        : trips.isEmpty
+                            ? const _NoMatches()
+                            : ListView.builder(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                itemCount: trips.length,
+                                itemBuilder: (context, index) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _HistoryTripCard(
+                                    trip: trips[index],
+                                    onOpen: () =>
+                                        widget.onOpenTrip(trips[index]),
+                                    onDuplicate: () =>
+                                        widget.onDuplicateTrip(trips[index]),
+                                    onDelete: () => _showDeleteUnavailable(),
+                                    onShare: () => _showSharePlaceholder(),
+                                  ),
                                 ),
                               ),
-                            ),
-                ),
-              ],
-            );
-          },
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -188,9 +195,30 @@ class _HistoryControls extends StatelessWidget {
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final segments = <Widget>[
+              for (final entry in const [
+                (HistoryFilter.all, 'Todos'),
+                (HistoryFilter.profitable, 'Conviene'),
+                (HistoryFilter.loss, 'No conviene'),
+              ])
+                ChoiceChip(
+                  label: Text(entry.$2),
+                  selected: filter == entry.$1,
+                  onSelected: (_) => onFilterChanged(entry.$1),
+                ),
+            ];
+            if (constraints.maxWidth < 420) {
+              return Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                alignment: WrapAlignment.center,
+                children: segments,
+              );
+            }
+            return SizedBox(
+              width: double.infinity,
               child: SegmentedButton<HistoryFilter>(
                 segments: const [
                   ButtonSegment(value: HistoryFilter.all, label: Text('Todos')),
@@ -208,14 +236,15 @@ class _HistoryControls extends StatelessWidget {
                 onSelectionChanged: (selected) =>
                     onFilterChanged(selected.first),
               ),
-            ),
-          ],
+            );
+          },
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<HistorySort>(
           // Keep compatibility with the Flutter 3.27.4 SDK used by Vercel.
           // ignore: deprecated_member_use
           value: sort,
+          isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Ordenar por',
             prefixIcon: Icon(Icons.sort),
@@ -433,22 +462,31 @@ class _EmptyHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
-            const Icon(
-              Icons.history_toggle_off_outlined,
-              color: AppColors.roadYellow,
-              size: 58,
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.history_toggle_off_outlined,
+                      color: AppColors.roadYellow,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Aún no realizaste ninguna simulación.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Aún no realizaste ninguna simulación.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: () => onStartTrip(),
               icon: const Icon(Icons.add_road_outlined),
