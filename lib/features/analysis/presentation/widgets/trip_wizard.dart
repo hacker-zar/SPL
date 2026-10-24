@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/widgets/responsive_body.dart';
 import '../controllers/trip_quote_controller.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import 'offer_costs_step.dart';
@@ -70,31 +71,40 @@ class TripWizard extends StatelessWidget {
       animation: controller,
       builder: (context, _) => Column(
         children: [
-          WizardProgressHeader(currentStep: _index, labels: _labels),
+          ResponsiveBody(
+            maxWidth: 720,
+            child: WizardProgressHeader(currentStep: _index, labels: _labels),
+          ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              children: [
-                if (controller.errorMessage != null)
-                  _ErrorBanner(message: controller.errorMessage!),
-                switch (step) {
-                  WizardStep.vehicle => VehicleStep(controller: controller),
-                  WizardStep.route => RouteStep(controller: controller),
-                  WizardStep.offer => OfferCostsStep(controller: controller),
-                  WizardStep.review => ReviewStep(
-                      controller: controller,
-                      onEdit: onStepChanged,
-                    ),
-                },
-              ],
+            child: ResponsiveBody(
+              maxWidth: 720,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+                children: [
+                  if (controller.errorMessage != null)
+                    _ErrorBanner(message: controller.errorMessage!),
+                  switch (step) {
+                    WizardStep.vehicle => VehicleStep(controller: controller),
+                    WizardStep.route => RouteStep(controller: controller),
+                    WizardStep.offer => OfferCostsStep(controller: controller),
+                    WizardStep.review => ReviewStep(
+                        controller: controller,
+                        onEdit: onStepChanged,
+                      ),
+                  },
+                ],
+              ),
             ),
           ),
-          _WizardActions(
-            step: step,
-            isRouteLoading: controller.isRouteLoading,
-            onBack:
-                _index == 0 ? null : () => onStepChanged(_steps[_index - 1]),
-            onContinue: _continue,
+          ResponsiveBody(
+            maxWidth: 720,
+            child: _WizardActions(
+              step: step,
+              isRouteLoading: controller.isRouteLoading,
+              onBack:
+                  _index == 0 ? null : () => onStepChanged(_steps[_index - 1]),
+              onContinue: _continue,
+            ),
           ),
         ],
       ),
@@ -142,7 +152,7 @@ class _WizardActions extends StatelessWidget {
           border: Border(top: BorderSide(color: Color(0xFF2C3338))),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          padding: const EdgeInsets.fromLTRB(0, 10, 0, 12),
           child: Row(
             children: [
               if (onBack != null)
