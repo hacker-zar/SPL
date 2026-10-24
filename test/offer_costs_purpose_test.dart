@@ -59,7 +59,11 @@ void main() {
   testWidgets('freight retains per ton price fields', (tester) async {
     final controller = _controller()..setPricingMode(PricingMode.perTon);
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: OfferCostsStep(controller: controller)),
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: OfferCostsStep(controller: controller),
+        ),
+      ),
     ));
     expect(find.text('Toneladas'), findsOneWidget);
     expect(find.text('Precio por tonelada'), findsOneWidget);
