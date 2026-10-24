@@ -7,6 +7,7 @@ import '../../../costs/domain/models/cost_inputs.dart';
 import '../../../costs/domain/services/toll_estimator.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/domain/repositories/trip_repository.dart';
+import '../../../route_planning/data/manual_route_service.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
 import '../../../route_planning/domain/models/route_info.dart';
 import '../../../route_planning/domain/services/geocoding_service.dart';
@@ -26,7 +27,9 @@ class TripQuoteController extends ChangeNotifier {
     required this.vehicleProfileRepository,
     required this.tripRepository,
     required CostInputs initialCosts,
-  }) : costs = initialCosts;
+    ManualRouteService? manualRouteService,
+  })  : costs = initialCosts,
+        manualRouteService = manualRouteService ?? ManualRouteService();
 
   final ProfitabilityCalculator calculator;
   final RouteService routeService;
@@ -34,6 +37,7 @@ class TripQuoteController extends ChangeNotifier {
   final TollEstimator tollEstimator;
   final VehicleProfileRepository vehicleProfileRepository;
   final TripRepository tripRepository;
+  final ManualRouteService manualRouteService;
 
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   bool _historyLoaded = false;
@@ -55,6 +59,7 @@ class TripQuoteController extends ChangeNotifier {
   double pricePerTon = 0;
   bool emptyReturn = false;
   bool isRouteLoading = false;
+  bool isManualRouteRequired = false;
   bool isOriginResolving = false;
   bool isDestinationResolving = false;
   bool isSaving = false;
@@ -166,6 +171,9 @@ class TripQuoteController extends ChangeNotifier {
     if (originPoint == null || destinationPoint == null) {
       return _setValidationError('Selecciona origen y destino para continuar.');
     }
+    if (isOriginResolving || isDestinationResolving) {
+      return _setValidationError('Esperá a que terminemos de buscar el lugar.');
+    }
     if (isRouteLoading) {
       return _setValidationError(
           'Esperá a que terminemos de calcular la ruta.');
@@ -239,6 +247,7 @@ class TripQuoteController extends ChangeNotifier {
     invalidOfferFields.clear();
     emptyReturn = false;
     isRouteLoading = false;
+    isManualRouteRequired = false;
     isOriginResolving = false;
     isDestinationResolving = false;
     isSaving = false;
@@ -305,6 +314,7 @@ class TripQuoteController extends ChangeNotifier {
     originPoint = point;
     origin = _formatPoint(point);
     route = null;
+    isManualRouteRequired = false;
     tollEstimate = null;
     _calculateRouteIfReady();
     notifyListeners();
@@ -314,9 +324,59 @@ class TripQuoteController extends ChangeNotifier {
     destinationPoint = point;
     destination = _formatPoint(point);
     route = null;
+    isManualRouteRequired = false;
     tollEstimate = null;
     _calculateRouteIfReady();
     notifyListeners();
+  }
+
+  void setOriginText(String value) {
+    origin = value;
+    originPoint = null;
+    route = null;
+    tollEstimate = null;
+    isManualRouteRequired = false;
+    errorMessage = null;
+    notifyListeners();
+  }
+
+  void setDestinationText(String value) {
+    destination = value;
+    destinationPoint = null;
+    route = null;
+    tollEstimate = null;
+    isManualRouteRequired = false;
+    errorMessage = null;
+    notifyListeners();
+  }
+
+  bool setManualRoute({
+    required double distanceKm,
+    required double durationHours,
+  }) {
+    final originPoint = this.originPoint;
+    final destinationPoint = this.destinationPoint;
+    if (originPoint == null ||
+        destinationPoint == null ||
+        distanceKm <= 0 ||
+        durationHours <= 0) {
+      errorMessage = 'Ingresá kilómetros y horas mayores a cero.';
+      notifyListeners();
+      return false;
+    }
+    route = manualRouteService.createRoute(
+      origin: originPoint,
+      destination: destinationPoint,
+      originName: origin,
+      destinationName: destination,
+      distanceKm: distanceKm,
+      durationMinutes: durationHours * 60,
+    );
+    isManualRouteRequired = false;
+    errorMessage = null;
+    _applyEstimatedTolls(force: !tollsEditedManually || costs.tolls == 0);
+    notifyListeners();
+    return true;
   }
 
   Future<void> calculateRoute() async {
@@ -341,6 +401,7 @@ class TripQuoteController extends ChangeNotifier {
       _applyEstimatedTolls(force: !tollsEditedManually || costs.tolls == 0);
     } on Object catch (error) {
       errorMessage = error.toString();
+      isManualRouteRequired = true;
     } finally {
       isRouteLoading = false;
       notifyListeners();
@@ -511,6 +572,7 @@ class TripQuoteController extends ChangeNotifier {
 
     try {
       final result = await geocodingService.resolve(input);
+      isManualRouteRequired = false;
       if (isOrigin) {
         originPoint = result.point;
         origin = result.name;

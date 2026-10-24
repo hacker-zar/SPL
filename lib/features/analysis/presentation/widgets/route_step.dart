@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart' as ll;
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
+import '../../../../core/utils/parse_amount.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../controllers/trip_quote_controller.dart';
@@ -20,7 +21,10 @@ class RouteStep extends StatefulWidget {
 class _RouteStepState extends State<RouteStep> {
   late final TextEditingController originController;
   late final TextEditingController destinationController;
+  late final TextEditingController manualDistanceController;
+  late final TextEditingController manualDurationController;
   _RoutePickTarget pickTarget = _RoutePickTarget.origin;
+  bool manualValuesInvalid = false;
 
   TripQuoteController get controller => widget.controller;
 
@@ -29,6 +33,8 @@ class _RouteStepState extends State<RouteStep> {
     super.initState();
     originController = TextEditingController(text: controller.origin);
     destinationController = TextEditingController(text: controller.destination);
+    manualDistanceController = TextEditingController();
+    manualDurationController = TextEditingController();
     controller.addListener(_syncLocationText);
   }
 
@@ -37,6 +43,8 @@ class _RouteStepState extends State<RouteStep> {
     controller.removeListener(_syncLocationText);
     originController.dispose();
     destinationController.dispose();
+    manualDistanceController.dispose();
+    manualDurationController.dispose();
     super.dispose();
   }
 
@@ -106,6 +114,7 @@ class _RouteStepState extends State<RouteStep> {
                     label: 'Origen',
                     controller: originController,
                     isLoading: controller.isOriginResolving,
+                    onChanged: controller.setOriginText,
                     onSearch: () async {
                       await controller.resolveOrigin(originController.text);
                       if (mounted) {
@@ -121,6 +130,7 @@ class _RouteStepState extends State<RouteStep> {
                     label: 'Destino',
                     controller: destinationController,
                     isLoading: controller.isDestinationResolving,
+                    onChanged: controller.setDestinationText,
                     onSearch: () => controller
                         .resolveDestination(destinationController.text),
                   ),
@@ -157,10 +167,70 @@ class _RouteStepState extends State<RouteStep> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
+            if (controller.isManualRouteRequired &&
+                controller.originPoint != null &&
+                controller.destinationPoint != null) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'No pudimos calcular la ruta. Cargá los kilómetros y las horas estimadas para continuar.',
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: manualDistanceController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Kilómetros totales',
+                  helperText:
+                      _manualPreview(manualDistanceController.text, 'km'),
+                  errorText: manualValuesInvalid &&
+                          (parseAmount(manualDistanceController.text) ?? 0) <= 0
+                      ? 'Ingresá más de 0 km.'
+                      : null,
+                ),
+                onChanged: (_) => setState(() => manualValuesInvalid = false),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: manualDurationController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Duración estimada (horas)',
+                  helperText:
+                      _manualPreview(manualDurationController.text, 'h'),
+                  errorText: manualValuesInvalid &&
+                          (parseAmount(manualDurationController.text) ?? 0) <= 0
+                      ? 'Ingresá más de 0 horas.'
+                      : null,
+                ),
+                onChanged: (_) => setState(() => manualValuesInvalid = false),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _useManualRoute,
+                icon: const Icon(Icons.edit_road_outlined),
+                label: const Text('Usar ruta manual'),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  void _useManualRoute() {
+    final distance = parseAmount(manualDistanceController.text);
+    final hours = parseAmount(manualDurationController.text);
+    setState(() => manualValuesInvalid =
+        distance == null || distance <= 0 || hours == null || hours <= 0);
+    if (manualValuesInvalid) return;
+    controller.setManualRoute(distanceKm: distance!, durationHours: hours!);
+  }
+
+  String? _manualPreview(String input, String unit) {
+    final value = parseAmount(input);
+    return value == null ? null : '${decimal(value)} $unit';
   }
 }
 
@@ -169,12 +239,14 @@ class _LocationInput extends StatelessWidget {
     required this.label,
     required this.controller,
     required this.isLoading,
+    required this.onChanged,
     required this.onSearch,
   });
 
   final String label;
   final TextEditingController controller;
   final bool isLoading;
+  final ValueChanged<String> onChanged;
   final Future<void> Function() onSearch;
 
   @override
@@ -202,6 +274,7 @@ class _LocationInput extends StatelessWidget {
               ),
       ),
       onSubmitted: isLoading ? null : (_) async => onSearch(),
+      onChanged: onChanged,
     );
   }
 }
