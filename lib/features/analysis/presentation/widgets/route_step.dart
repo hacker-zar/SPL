@@ -4,7 +4,9 @@ import 'package:latlong2/latlong.dart' as ll;
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
+import '../../../../shared/layout/breakpoints.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
+import '../../../route_planning/domain/models/route_info.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../controllers/trip_quote_controller.dart';
 
@@ -59,6 +61,29 @@ class _RouteStepState extends State<RouteStep> {
   Widget build(BuildContext context) {
     final route = controller.effectiveRoute;
     final personal = controller.purpose == TripPurpose.personal;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final isExpanded = Breakpoints.isExpanded(viewportWidth);
+    final isCompact = Breakpoints.isCompact(viewportWidth);
+
+    final routeDetails = _routeDetails(context, route, personal);
+    final map = _RoutePickerMap(
+      origin: controller.originPoint,
+      destination: controller.destinationPoint,
+      routePoints: route?.polyline ?? const [],
+      pickTarget: pickTarget,
+      isLoading: controller.isRouteLoading,
+      height: isExpanded ? 420 : 220,
+      allowSingleFingerDrag: !isCompact,
+      onPointPicked: (point) {
+        if (pickTarget == _RoutePickTarget.origin) {
+          controller.setOriginPoint(point);
+          setState(() => pickTarget = _RoutePickTarget.destination);
+        } else {
+          controller.setDestinationPoint(point);
+        }
+      },
+    );
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -70,96 +95,98 @@ class _RouteStepState extends State<RouteStep> {
             const Text(
                 'Elegí origen y destino para calcular kilómetros y tiempo.'),
             const SizedBox(height: 12),
-            SegmentedButton<_RoutePickTarget>(
-              segments: const [
-                ButtonSegment(
-                    value: _RoutePickTarget.origin, label: Text('Origen')),
-                ButtonSegment(
-                    value: _RoutePickTarget.destination,
-                    label: Text('Destino')),
-              ],
-              selected: {pickTarget},
-              onSelectionChanged: (selected) =>
-                  setState(() => pickTarget = selected.first),
-            ),
-            const SizedBox(height: 10),
-            _RoutePickerMap(
-              origin: controller.originPoint,
-              destination: controller.destinationPoint,
-              routePoints: route?.polyline ?? const [],
-              pickTarget: pickTarget,
-              isLoading: controller.isRouteLoading,
-              onPointPicked: (point) {
-                if (pickTarget == _RoutePickTarget.origin) {
-                  controller.setOriginPoint(point);
-                  setState(() => pickTarget = _RoutePickTarget.destination);
-                } else {
-                  controller.setDestinationPoint(point);
-                }
-              },
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _LocationInput(
-                    label: 'Origen',
-                    controller: originController,
-                    isLoading: controller.isOriginResolving,
-                    onSearch: () async {
-                      await controller.resolveOrigin(originController.text);
-                      if (mounted) {
-                        setState(
-                            () => pickTarget = _RoutePickTarget.destination);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _LocationInput(
-                    label: 'Destino',
-                    controller: destinationController,
-                    isLoading: controller.isDestinationResolving,
-                    onSearch: () => controller
-                        .resolveDestination(destinationController.text),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(personal ? 'Incluir la vuelta' : 'Vuelvo vacío'),
-              value: controller.emptyReturn,
-              onChanged: controller.setEmptyReturn,
-            ),
-            if (!personal)
-              const Padding(
-                padding: EdgeInsets.only(left: 16),
-                child: Text(
-                    'Se estima con el mismo consumo que cargado; el real suele ser menor.'),
-              ),
-            if (!personal && controller.tollsEditedManually)
-              const Padding(
-                padding: EdgeInsets.only(left: 16, top: 4),
-                child: Text('Revisá si el monto de peajes incluye la vuelta.'),
-              ),
-            if (controller.isRouteLoading) ...[
-              const LinearProgressIndicator(),
-              const SizedBox(height: 8),
-              const Text('Calculando kilómetros y tiempo…'),
-            ],
-            if (route != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                '${decimal(route.distanceKm)} km en total · ${route.durationDays.ceil()} ${route.durationDays.ceil() == 1 ? 'día' : 'días'} estimados',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+            if (isExpanded)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: routeDetails),
+                  const SizedBox(width: 16),
+                  Expanded(child: map),
+                ],
+              )
+            else ...[
+              routeDetails,
+              const SizedBox(height: 12),
+              map,
             ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _routeDetails(
+    BuildContext context,
+    RouteInfo? route,
+    bool personal,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SegmentedButton<_RoutePickTarget>(
+          segments: const [
+            ButtonSegment(
+                value: _RoutePickTarget.origin, label: Text('Origen')),
+            ButtonSegment(
+              value: _RoutePickTarget.destination,
+              label: Text('Destino'),
+            ),
+          ],
+          selected: {pickTarget},
+          onSelectionChanged: (selected) =>
+              setState(() => pickTarget = selected.first),
+        ),
+        const SizedBox(height: 10),
+        _LocationInput(
+          label: 'Origen',
+          controller: originController,
+          isLoading: controller.isOriginResolving,
+          onSearch: () async {
+            await controller.resolveOrigin(originController.text);
+            if (mounted) {
+              setState(() => pickTarget = _RoutePickTarget.destination);
+            }
+          },
+        ),
+        const SizedBox(height: 10),
+        _LocationInput(
+          label: 'Destino',
+          controller: destinationController,
+          isLoading: controller.isDestinationResolving,
+          onSearch: () =>
+              controller.resolveDestination(destinationController.text),
+        ),
+        const SizedBox(height: 10),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(personal ? 'Incluir la vuelta' : 'Vuelvo vacío'),
+          value: controller.emptyReturn,
+          onChanged: controller.setEmptyReturn,
+        ),
+        if (!personal)
+          const Padding(
+            padding: EdgeInsets.only(left: 16),
+            child: Text(
+                'Se estima con el mismo consumo que cargado; el real suele ser menor.'),
+          ),
+        if (!personal && controller.tollsEditedManually)
+          const Padding(
+            padding: EdgeInsets.only(left: 16, top: 4),
+            child: Text('Revisá si el monto de peajes incluye la vuelta.'),
+          ),
+        if (controller.isRouteLoading) ...[
+          const LinearProgressIndicator(),
+          const SizedBox(height: 8),
+          const Text('Calculando kilómetros y tiempo…'),
+        ],
+        if (route != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            '${decimal(route.distanceKm)} km en total · ${route.durationDays.ceil()} ${route.durationDays.ceil() == 1 ? 'día' : 'días'} estimados',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -213,6 +240,8 @@ class _RoutePickerMap extends StatelessWidget {
     required this.routePoints,
     required this.pickTarget,
     required this.isLoading,
+    required this.height,
+    required this.allowSingleFingerDrag,
     required this.onPointPicked,
   });
 
@@ -221,6 +250,8 @@ class _RoutePickerMap extends StatelessWidget {
   final List<LatLngValue> routePoints;
   final _RoutePickTarget pickTarget;
   final bool isLoading;
+  final double height;
+  final bool allowSingleFingerDrag;
   final ValueChanged<LatLngValue> onPointPicked;
 
   @override
@@ -230,7 +261,7 @@ class _RoutePickerMap extends StatelessWidget {
         const ll.LatLng(-34.6037, -58.3816);
     final points = routePoints.map(_toLatLng).nonNulls.toList();
     return SizedBox(
-      height: 260,
+      height: height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: Stack(
@@ -239,6 +270,11 @@ class _RoutePickerMap extends StatelessWidget {
               options: MapOptions(
                 initialCenter: center,
                 initialZoom: 5,
+                interactionOptions: InteractionOptions(
+                  flags: allowSingleFingerDrag
+                      ? InteractiveFlag.all
+                      : InteractiveFlag.pinchZoom,
+                ),
                 onTap: (_, point) => onPointPicked(
                   LatLngValue(
                       latitude: point.latitude, longitude: point.longitude),
