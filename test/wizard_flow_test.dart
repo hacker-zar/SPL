@@ -88,7 +88,7 @@ void main() {
         initialStep: WizardStep.review,
       ),
     ));
-    await tester.tap(find.text('Calcular viaje'));
+    await tester.tap(find.text('Ver cuánto te queda'));
     await tester.pumpAndSettle();
     expect(find.text('Resultado del viaje'), findsOneWidget);
     expect(find.text('No hay datos suficientes para mostrar el resultado.'),

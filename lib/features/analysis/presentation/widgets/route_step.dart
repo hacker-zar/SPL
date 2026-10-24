@@ -4,7 +4,6 @@ import 'package:latlong2/latlong.dart' as ll;
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
-import '../../../../shared/widgets/metric_tile.dart';
 import '../../../route_planning/domain/models/lat_lng_value.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../controllers/trip_quote_controller.dart';
@@ -153,18 +152,9 @@ class _RouteStepState extends State<RouteStep> {
             ],
             if (route != null) ...[
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                      child: MetricTile(
-                          label: 'Kilómetros',
-                          value: decimal(route.distanceKm))),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: MetricTile(
-                          label: 'Tiempo',
-                          value: '${decimal(route.durationMinutes / 60)} h')),
-                ],
+              Text(
+                '${decimal(route.distanceKm)} km en total · ${route.durationDays.ceil()} ${route.durationDays.ceil() == 1 ? 'día' : 'días'} estimados',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
           ],
@@ -208,10 +198,10 @@ class _LocationInput extends StatelessWidget {
             : IconButton(
                 tooltip: 'Buscar $label',
                 icon: const Icon(Icons.search),
-                onPressed: () async => onSearch(),
+                onPressed: isLoading ? null : () async => onSearch(),
               ),
       ),
-      onSubmitted: (_) async => onSearch(),
+      onSubmitted: isLoading ? null : (_) async => onSearch(),
     );
   }
 }
@@ -315,6 +305,27 @@ class _RoutePickerMap extends StatelessWidget {
                       style: const TextStyle(
                           color: AppColors.textOnYellow,
                           fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 8,
+              bottom: 8,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xE60B0E10),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  child: Text(
+                    '© colaboradores de OpenStreetMap',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

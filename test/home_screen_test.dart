@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rentabilidad_flete/core/constants/app_constants.dart';
+import 'package:rentabilidad_flete/app.dart';
 import 'package:rentabilidad_flete/core/theme/app_theme.dart';
 import 'package:rentabilidad_flete/features/analysis/domain/services/profitability_calculator.dart';
 import 'package:rentabilidad_flete/features/analysis/presentation/controllers/trip_quote_controller.dart';
@@ -30,12 +30,15 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark(),
-        home: HomeScreen(controller: controller),
+        home: HomeScreen(
+          controller: controller,
+          personalModeEnabled: enablePersonalMode,
+        ),
       ),
     );
     await tester.pump();
 
-    expect(find.text('NetoKM'), findsOneWidget);
+    expect(find.text('Netokm'), findsOneWidget);
     expect(find.text('Flete'), findsOneWidget);
     expect(
       find.text('Viaje personal'),

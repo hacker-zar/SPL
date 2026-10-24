@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
@@ -21,6 +20,7 @@ class HistoryScreen extends StatefulWidget {
     required this.onOpenTrip,
     required this.onDuplicateTrip,
     required this.onStartTrip,
+    this.showPersonalTrips = false,
     super.key,
   });
 
@@ -28,6 +28,7 @@ class HistoryScreen extends StatefulWidget {
   final HistoryTripAction onOpenTrip;
   final HistoryTripAction onDuplicateTrip;
   final HistoryAction onStartTrip;
+  final bool showPersonalTrips;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -109,7 +110,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<TripRecord> get _visibleTrips {
     final query = searchController.text.trim().toLowerCase();
     final trips = controller.history.where((trip) {
-      if (!enablePersonalMode && trip.trip.purpose == TripPurpose.personal) {
+      if (!widget.showPersonalTrips &&
+          trip.trip.purpose == TripPurpose.personal) {
         return false;
       }
       final matchesQuery = query.isEmpty ||

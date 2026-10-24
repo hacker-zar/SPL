@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
 import '../../../analysis/presentation/screens/trip_quote_screen.dart';
@@ -8,14 +7,19 @@ import '../../../analysis/presentation/widgets/trip_wizard.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
+import '../../../../shared/widgets/feedback_link.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     required this.controller,
+    this.personalModeEnabled = false,
+    this.feedbackWhatsAppNumber = '',
     super.key,
   });
 
   final TripQuoteController controller;
+  final bool personalModeEnabled;
+  final String feedbackWhatsAppNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +39,7 @@ class HomeScreen extends StatelessWidget {
                   description: 'Calculá si te conviene aceptar un viaje.',
                   onTap: () => _openTripFlow(context, TripPurpose.freight),
                 ),
-                if (enablePersonalMode) ...[
+                if (personalModeEnabled) ...[
                   const SizedBox(height: 14),
                   _HomeActionCard(
                     icon: Icons.directions_car_outlined,
@@ -52,6 +56,7 @@ class HomeScreen extends StatelessWidget {
                   description: 'Consultá simulaciones guardadas.',
                   onTap: () => _openHistory(context),
                 ),
+                FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
               ],
             ),
           ),
@@ -62,13 +67,17 @@ class HomeScreen extends StatelessWidget {
 
   Future<void> _openTripFlow(BuildContext context,
       [TripPurpose purpose = TripPurpose.freight]) {
-    if (purpose == TripPurpose.personal && !enablePersonalMode) {
+    if (purpose == TripPurpose.personal && !personalModeEnabled) {
       return Future<void>.value();
     }
     controller.startTrip(purpose);
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (context) => TripQuoteScreen(controller: controller),
+        builder: (context) => TripQuoteScreen(
+          controller: controller,
+          personalModeEnabled: personalModeEnabled,
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+        ),
       ),
     );
   }
@@ -78,6 +87,7 @@ class HomeScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (context) => HistoryScreen(
           controller: controller,
+          showPersonalTrips: personalModeEnabled,
           onOpenTrip: (trip) => _openSavedTrip(context, trip),
           onDuplicateTrip: (trip) => _duplicateTrip(context, trip),
           onStartTrip: () => _openTripFlow(context),
@@ -87,23 +97,32 @@ class HomeScreen extends StatelessWidget {
   }
 
   Future<void> _openSavedTrip(BuildContext context, TripRecord trip) async {
+    if (!personalModeEnabled && trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => TripResultScreen(
           controller: controller,
           onNewSimulation: () {},
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
         ),
       ),
     );
   }
 
   Future<void> _duplicateTrip(BuildContext context, TripRecord trip) async {
+    if (!personalModeEnabled && trip.trip.purpose == TripPurpose.personal) {
+      return;
+    }
     controller.openTrip(trip);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => TripQuoteScreen(
           controller: controller,
+          personalModeEnabled: personalModeEnabled,
+          feedbackWhatsAppNumber: feedbackWhatsAppNumber,
           initialStep: WizardStep.review,
         ),
       ),
@@ -127,7 +146,7 @@ class _BrandHeader extends StatelessWidget {
           child: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(
-              'NetoKM',
+              'Netokm',
               style: TextStyle(
                 color: AppColors.textOnYellow,
                 fontSize: 22,

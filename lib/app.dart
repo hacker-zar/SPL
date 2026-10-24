@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/constants/app_constants.dart';
 import 'core/services/supabase_bootstrap.dart';
 import 'core/services/session_provider.dart';
 import 'core/theme/app_theme.dart';
@@ -17,6 +16,19 @@ import 'features/route_planning/data/nominatim_geocoding_service.dart';
 import 'features/route_planning/data/osrm_route_service.dart';
 import 'features/vehicle_profile/data/memory_vehicle_profile_repository.dart';
 import 'features/vehicle_profile/data/supabase_vehicle_profile_repository.dart';
+
+const bool enablePersonalMode = bool.fromEnvironment(
+  'ENABLE_PERSONAL_MODE',
+  defaultValue: false,
+);
+const String nominatimContactEmail = String.fromEnvironment(
+  'NOMINATIM_CONTACT_EMAIL',
+  defaultValue: '',
+);
+const String feedbackWhatsAppNumber = String.fromEnvironment(
+  'FEEDBACK_WHATSAPP',
+  defaultValue: '',
+);
 
 class TripDecisionApp extends StatefulWidget {
   const TripDecisionApp({
@@ -71,6 +83,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
     );
     final geocodingService = NominatimGeocodingService(
       baseUrl: nominatimBaseUrl,
+      contactEmail: nominatimContactEmail,
     );
     final tollEstimator = TollEstimator(
       ratePerKm: _doubleEnvironment('TOLL_RATE_PER_KM', 0),
@@ -88,7 +101,7 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
       vehicleProfileRepository: vehicleProfileRepository,
       tripRepository: tripRepository,
       initialCosts: const CostInputs(),
-    )..load();
+    );
   }
 
   @override
@@ -100,12 +113,20 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'NetoKM',
+      title: 'Netokm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
       home: enablePersonalMode
-          ? HomeScreen(controller: controller)
-          : TripQuoteScreen(controller: controller),
+          ? HomeScreen(
+              controller: controller,
+              personalModeEnabled: enablePersonalMode,
+              feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+            )
+          : TripQuoteScreen(
+              controller: controller,
+              personalModeEnabled: enablePersonalMode,
+              feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+            ),
     );
   }
 }

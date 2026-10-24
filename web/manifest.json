@@ -1,9 +1,9 @@
 {
-  "name": "NetoKM",
-  "short_name": "NetoKM",
+  "name": "Netokm",
+  "short_name": "Netokm",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0B0E10",
   "theme_color": "#0B0E10",
-  "description": "Calculá el costo de un viaje personal o la rentabilidad de un flete."
+  "description": "Calculá cuánto te queda en cada viaje. Combustible, peajes y mantenimiento en un solo lugar."
 }

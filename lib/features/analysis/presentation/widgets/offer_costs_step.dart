@@ -22,7 +22,6 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
   late final TextEditingController tollsController;
   late final TextEditingController allowancesController;
   late final TextEditingController travelersController;
-  bool showAdjustments = false;
 
   TripQuoteController get controller => widget.controller;
 
@@ -126,74 +125,61 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
                 value: money(controller.grossIncome),
               ),
             ],
-            const SizedBox(height: 8),
-            if (!personal)
-              TextButton.icon(
-                onPressed: () =>
-                    setState(() => showAdjustments = !showAdjustments),
-                icon: Icon(showAdjustments ? Icons.expand_less : Icons.tune),
-                label: Text(showAdjustments
-                    ? 'Ocultar costos y ajustes'
-                    : 'Mostrar costos y ajustes'),
+            const SizedBox(height: 10),
+            _NumberField(
+              controller: tollsController,
+              label:
+                  'Peajes (total del viaje, incluida la vuelta si corresponde)',
+              onChanged: controller.setTolls,
+              trailing: tollEstimate == null
+                  ? null
+                  : IconButton(
+                      tooltip: 'Usar peaje estimado',
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () {
+                        controller.useEstimatedTolls();
+                        tollsController.text =
+                            _numberText(controller.costs.tolls);
+                      },
+                    ),
+            ),
+            if (controller.costs.tolls == 0)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Sin peajes cargados. Si tu ruta tiene, cargalos.'),
+              )
+            else if (!personal && tollEstimate != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                    'Peajes estimados para ${decimal(tollEstimate.distanceKm)} km.'),
               ),
-            if (showAdjustments || personal) ...[
-              if (!personal && controller.tollEstimate == null)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text(
-                      'Cargá los peajes de tu ruta. No los estimamos automáticamente.'),
-                ),
-              if (!personal && tollEstimate != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                      'Peajes estimados para ${decimal(tollEstimate.distanceKm)} km.'),
-                ),
-              _NumberField(
-                controller: tollsController,
-                label:
-                    'Peajes (total del viaje, incluida la vuelta si corresponde)',
-                onChanged: controller.setTolls,
-                trailing: tollEstimate == null
-                    ? null
-                    : IconButton(
-                        tooltip: 'Usar peaje estimado',
-                        icon: const Icon(Icons.refresh),
-                        onPressed: () {
-                          controller.useEstimatedTolls();
-                          tollsController.text =
-                              _numberText(controller.costs.tolls);
-                        },
-                      ),
+            if (!personal && controller.tollsEditedManually)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Revisá si el monto de peajes incluye la vuelta.'),
               ),
-              if (!personal && controller.tollsEditedManually)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child:
-                      Text('Revisá si el monto de peajes incluye la vuelta.'),
-                ),
+            const SizedBox(height: 10),
+            _NumberField(
+              controller: allowancesController,
+              label: personal
+                  ? 'Otros gastos (comida, alojamiento)'
+                  : 'Viáticos',
+              onChanged: controller.setAllowances,
+            ),
+            if (personal) ...[
               const SizedBox(height: 10),
-              _NumberField(
-                controller: allowancesController,
-                label: personal
-                    ? 'Otros gastos (comida, alojamiento)'
-                    : 'Viáticos',
-                onChanged: controller.setAllowances,
-              ),
-              if (personal) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: travelersController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Cantidad de personas que comparten los gastos',
-                    helperText: 'Mínimo: 1 persona.',
-                  ),
-                  onChanged: (value) => controller.setTravelers(
-                    int.tryParse(value) ?? 1,
-                  ),
+              TextField(
+                controller: travelersController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Cantidad de personas que comparten los gastos',
+                  helperText: 'Mínimo: 1 persona.',
                 ),
-              ],
+                onChanged: (value) => controller.setTravelers(
+                  int.tryParse(value) ?? 1,
+                ),
+              ),
             ],
           ],
         ),
