@@ -155,12 +155,14 @@ class TripResultScreen extends StatelessWidget {
     required this.onNewSimulation,
     this.feedbackWhatsAppNumber = '',
     this.onAddToComparison,
+    this.popAfterNewSimulation = true,
     super.key,
   });
 
   final TripQuoteController controller;
   final VoidCallback onNewSimulation;
   final ValueChanged<ComparisonTrip>? onAddToComparison;
+  final bool popAfterNewSimulation;
   final String feedbackWhatsAppNumber;
 
   @override
@@ -328,7 +330,9 @@ class TripResultScreen extends StatelessWidget {
                   onPressed: () {
                     controller.resetSimulation();
                     onNewSimulation();
-                    Navigator.of(context).pop();
+                    if (popAfterNewSimulation) {
+                      Navigator.of(context).pop();
+                    }
                   },
                   icon: const Icon(Icons.add_road_outlined),
                   label: const Text('Nueva simulación'),
@@ -385,11 +389,7 @@ class _ProfitSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = durationDays;
-    final statusLabel = switch (analysis.status) {
-      ProfitabilityStatus.profitable => 'Margen saludable',
-      ProfitabilityStatus.low => 'Margen bajo',
-      ProfitabilityStatus.loss => 'No cubre los costos',
-    };
+    final statusLabel = analysis.status.label;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

@@ -61,11 +61,14 @@ class ProfitabilityCalculator {
       profitPerKm: profitPerKm,
       breakEvenPrice: totalCosts,
       minimumPricePerTon: minimumPricePerTon,
-      status: _statusFor(netProfit, marginPercent),
+      status: statusFor(netProfit: netProfit, marginPercent: marginPercent),
     );
   }
 
-  ProfitabilityStatus _statusFor(double netProfit, double marginPercent) {
+  ProfitabilityStatus statusFor({
+    required double netProfit,
+    required double marginPercent,
+  }) {
     if (netProfit < 0) {
       return ProfitabilityStatus.loss;
     }
