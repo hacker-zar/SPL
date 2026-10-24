@@ -142,6 +142,9 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+    controller.vehicleProfile = null;
+    controller.notifyListeners();
+    await tester.pumpAndSettle();
 
     expect(find.text('Conviene', skipOffstage: false), findsNWidgets(2));
     expect(find.text('Margen bajo', skipOffstage: false), findsNWidgets(2));

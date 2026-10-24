@@ -45,7 +45,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    controller.loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) controller.loadHistory();
+    });
   }
 
   @override
@@ -94,11 +96,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   status: trips[index].trip.purpose ==
                                           TripPurpose.personal
                                       ? null
-                                      : controller.calculator.statusFor(
-                                          netProfit: trips[index].netProfit,
-                                          marginPercent:
-                                              trips[index].marginPercent,
-                                        ),
+                                      : _statusFor(trips[index]),
                                   onOpen: () => widget.onOpenTrip(trips[index]),
                                   onDuplicate: () =>
                                       widget.onDuplicateTrip(trips[index]),
@@ -125,10 +123,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           trip.route.originName.toLowerCase().contains(query) ||
           trip.route.destinationName.toLowerCase().contains(query);
       final isPersonal = trip.trip.purpose == TripPurpose.personal;
-      final status = controller.calculator.statusFor(
-        netProfit: trip.netProfit,
-        marginPercent: trip.marginPercent,
-      );
+      final status = _statusFor(trip);
       final matchesFilter = isPersonal
           ? filter == HistoryFilter.all
           : switch (filter) {
@@ -150,6 +145,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
             first.netProfit.compareTo(second.netProfit),
         });
     return trips;
+  }
+
+  ProfitabilityStatus _statusFor(TripRecord trip) {
+    return controller.analysisForRecord(trip)?.status ??
+        controller.calculator.statusFor(
+          netProfit: trip.netProfit,
+          marginPercent: trip.marginPercent,
+        );
   }
 }
 
