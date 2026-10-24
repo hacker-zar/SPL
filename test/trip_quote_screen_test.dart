@@ -7,6 +7,8 @@ import 'package:rentabilidad_flete/features/analysis/presentation/screens/trip_q
 import 'package:rentabilidad_flete/features/costs/domain/models/cost_inputs.dart';
 import 'package:rentabilidad_flete/features/costs/domain/services/toll_estimator.dart';
 import 'package:rentabilidad_flete/features/history/data/memory_trip_repository.dart';
+import 'package:rentabilidad_flete/features/history/domain/models/trip_record.dart';
+import 'package:rentabilidad_flete/features/history/domain/repositories/trip_repository.dart';
 import 'package:rentabilidad_flete/features/route_planning/data/manual_route_service.dart';
 import 'package:rentabilidad_flete/features/route_planning/data/nominatim_geocoding_service.dart';
 import 'package:rentabilidad_flete/features/route_planning/domain/models/lat_lng_value.dart';
@@ -50,9 +52,39 @@ void main() {
     expect(find.text('PRECIO DE EQUILIBRIO'), findsNothing);
     controller.dispose();
   });
+
+  testWidgets('save failure is visible on the result screen', (tester) async {
+    final controller =
+        _controller(PricingMode.flatRate, _FailingTripRepository());
+    await tester.pumpWidget(MaterialApp(
+      home: TripResultScreen(controller: controller, onNewSimulation: () {}),
+    ));
+    await tester.drag(find.byType(ListView), const Offset(0, -1600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guardar simulación'));
+    await tester.pumpAndSettle();
+
+    expect(controller.errorMessage, contains('No se pudo guardar'));
+    expect(find.textContaining('No se pudo guardar'), findsOneWidget);
+    controller.dispose();
+  });
+
+  testWidgets('confirms a successful save briefly', (tester) async {
+    final controller = _controller(PricingMode.flatRate);
+    await tester.pumpWidget(MaterialApp(
+      home: TripResultScreen(controller: controller, onNewSimulation: () {}),
+    ));
+    await tester.drag(find.byType(ListView), const Offset(0, -1600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guardar simulación'));
+    await tester.pumpAndSettle();
+    expect(find.text('Simulación guardada.'), findsOneWidget);
+    controller.dispose();
+  });
 }
 
-TripQuoteController _controller(PricingMode mode) {
+TripQuoteController _controller(PricingMode mode,
+    [TripRepository? repository]) {
   final controller = TripQuoteController(
     calculator: const ProfitabilityCalculator(
       marginThresholds: ProfitabilityThresholds(),
@@ -61,7 +93,7 @@ TripQuoteController _controller(PricingMode mode) {
     geocodingService: NominatimGeocodingService(),
     tollEstimator: const TollEstimator(ratePerKm: 0),
     vehicleProfileRepository: MemoryVehicleProfileRepository(),
-    tripRepository: MemoryTripRepository(),
+    tripRepository: repository ?? MemoryTripRepository(),
     initialCosts: const CostInputs(fuelPricePerLiter: 1000),
   );
   controller.route = const RouteInfo(
@@ -85,4 +117,14 @@ TripQuoteController _controller(PricingMode mode) {
     controller.setPricePerTon(10000);
   }
   return controller;
+}
+
+class _FailingTripRepository implements TripRepository {
+  @override
+  Stream<List<TripRecord>> watchRecent() => const Stream.empty();
+
+  @override
+  Future<void> save(TripRecord trip) async {
+    throw StateError('guardado fallido');
+  }
 }

@@ -191,6 +191,10 @@ class TripResultScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
+                if (controller.errorMessage != null) ...[
+                  _SaveErrorBanner(message: controller.errorMessage!),
+                  const SizedBox(height: 12),
+                ],
                 if (personal) ...[
                   _ResultCard(
                     title: 'Costo total del viaje',
@@ -365,13 +369,48 @@ class TripResultScreen extends StatelessWidget {
   }
 
   Future<void> _saveTripAndReturnHome(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     await controller.saveCurrentTrip();
-    if (!context.mounted || controller.errorMessage != null) {
+    if (!context.mounted) return;
+    if (controller.errorMessage != null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(controller.errorMessage!)),
+      );
       return;
     }
 
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Simulación guardada.')),
+    );
     controller.resetSimulation();
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+}
+
+class _SaveErrorBanner extends StatelessWidget {
+  const _SaveErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.error;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      ),
+    );
   }
 }
 
