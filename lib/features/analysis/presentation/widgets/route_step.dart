@@ -153,7 +153,7 @@ class _RouteStepState extends State<RouteStep> {
             if (route != null) ...[
               const SizedBox(height: 10),
               Text(
-                '${decimal(route.distanceKm)} km en total · ${route.durationDays.ceil()} ${route.durationDays.ceil() == 1 ? 'día' : 'días'} estimados',
+                '${decimal(route.distanceKm)} km en total · ${route.durationDays} ${route.durationDays == 1 ? 'día' : 'días'} estimados',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ],

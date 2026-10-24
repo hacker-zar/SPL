@@ -378,11 +378,11 @@ class _ProfitSummary extends StatelessWidget {
 
   final TripAnalysis analysis;
   final double? distanceKm;
-  final double? durationDays;
+  final int? durationDays;
 
   @override
   Widget build(BuildContext context) {
-    final days = durationDays?.ceil();
+    final days = durationDays;
     final statusLabel = switch (analysis.status) {
       ProfitabilityStatus.profitable => 'Margen saludable',
       ProfitabilityStatus.low => 'Margen bajo',
