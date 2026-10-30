@@ -148,8 +148,8 @@ void main() {
         costs: const CostInputs(),
         vehicleProfile: profile,
         emptyReturn: true);
-    expect(outbound.timeCost, 12500);
-    expect(withReturn.timeCost, 25000);
+    expect(outbound.timeCost, 36000);
+    expect(withReturn.timeCost, 60000);
     expect(withReturn.totalCosts, greaterThan(outbound.totalCosts));
   });
 

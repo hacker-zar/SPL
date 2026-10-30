@@ -1,5 +1,8 @@
 import 'lat_lng_value.dart';
 
+/// supuesta a validar con transportistas.
+const double drivingHoursPerDay = 10;
+
 class RouteInfo {
   const RouteInfo({
     required this.originName,
@@ -19,8 +22,8 @@ class RouteInfo {
   final double durationMinutes;
   final List<LatLngValue> polyline;
 
-  double get durationDays {
-    final days = durationMinutes / (60 * 24);
+  int get durationDays {
+    final days = (durationMinutes / 60 / drivingHoursPerDay).ceil();
     return days < 1 ? 1 : days;
   }
 
