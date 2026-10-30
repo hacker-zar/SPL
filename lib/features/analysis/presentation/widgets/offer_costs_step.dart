@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/money_format.dart';
+import '../../../../core/utils/parse_amount.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../controllers/trip_quote_controller.dart';
@@ -221,7 +222,7 @@ class _OfferCostsStepState extends State<OfferCostsStep> {
   }
 }
 
-class _NumberField extends StatelessWidget {
+class _NumberField extends StatefulWidget {
   const _NumberField({
     required this.controller,
     required this.label,
@@ -237,19 +238,34 @@ class _NumberField extends StatelessWidget {
   final Widget? trailing;
 
   @override
+  State<_NumberField> createState() => _NumberFieldState();
+}
+
+class _NumberFieldState extends State<_NumberField> {
+  bool hasEdited = false;
+
+  @override
   Widget build(BuildContext context) {
+    final parsed = parseAmount(widget.controller.text);
+    final isInvalid = hasEdited && parsed == null;
     return TextField(
-      controller: controller,
+      controller: widget.controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
-        labelText: label,
-        suffixText: unit,
-        suffixIcon: trailing,
-        helperText: _hasMoreThanNineDigits(controller.text)
+        labelText: widget.label,
+        suffixText: widget.unit,
+        suffixIcon: widget.trailing,
+        errorText: isInvalid ? 'Ingresá un importe válido.' : null,
+        helperText: !isInvalid && _hasMoreThanNineDigits(parsed)
             ? 'El importe supera las 9 cifras; revisá si está bien.'
             : null,
       ),
-      onChanged: (value) => onChanged(_parseNumber(value)),
+      onChanged: (value) {
+        hasEdited = true;
+        final amount = parseAmount(value);
+        if (amount != null) widget.onChanged(amount);
+        setState(() {});
+      },
     );
   }
 }
@@ -273,13 +289,8 @@ class _FormSection extends StatelessWidget {
   }
 }
 
-double _parseNumber(String value) =>
-    double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
-
-bool _hasMoreThanNineDigits(String value) {
-  final parsed = double.tryParse(value.replaceAll(',', '.').trim());
-  return parsed != null && parsed.abs() >= 1000000000;
-}
+bool _hasMoreThanNineDigits(double? value) =>
+    value != null && value.abs() >= 1000000000;
 
 String _numberText(double value) => value == 0
     ? ''

@@ -9,9 +9,9 @@ enum ProfitabilityStatus {
 
   String get label {
     return switch (this) {
-      ProfitabilityStatus.profitable => 'Viaje rentable',
-      ProfitabilityStatus.low => 'Rentabilidad baja',
-      ProfitabilityStatus.loss => 'No aceptes este viaje',
+      ProfitabilityStatus.profitable => 'Conviene',
+      ProfitabilityStatus.low => 'Margen bajo',
+      ProfitabilityStatus.loss => 'No conviene',
     };
   }
 

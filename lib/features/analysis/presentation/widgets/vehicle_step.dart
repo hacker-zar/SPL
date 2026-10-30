@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/money_format.dart';
+import '../../../../core/utils/parse_amount.dart';
 import '../../../../shared/widgets/responsive_body.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
@@ -171,17 +172,22 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: 'Consumo L/100 km',
+              errorText: _amountError(consumptionController),
               helperText: isPersonal
                   ? 'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'
                   : null,
             ),
+            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: maintenanceController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration:
-                const InputDecoration(labelText: 'Mantenimiento por km'),
+            decoration: InputDecoration(
+              labelText: 'Mantenimiento por km',
+              errorText: _amountError(maintenanceController),
+            ),
+            onChanged: (_) => setState(() {}),
           ),
           const Text('Incluye neumáticos, aceite, service y reparaciones.'),
           Align(
@@ -195,11 +201,13 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
               controller: dailyFixedCostController,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText:
                     'Costos fijos por día (seguro, amortización, sueldo del chofer)',
                 helperText: 'Se multiplica por los días estimados del viaje.',
+                errorText: _amountError(dailyFixedCostController),
               ),
+              onChanged: (_) => setState(() {}),
             ),
           if (!isPersonal) const SizedBox(height: 10),
           if (!isPersonal)
@@ -207,7 +215,11 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
               controller: capacityController,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Capacidad tn'),
+              decoration: InputDecoration(
+                labelText: 'Capacidad tn',
+                errorText: _amountError(capacityController),
+              ),
+              onChanged: (_) => setState(() {}),
             ),
           if (!isPersonal) const SizedBox(height: 10),
           if (!isPersonal)
@@ -230,11 +242,25 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
   }
 
   void _save() {
-    final consumption = _parseNumber(consumptionController.text);
-    final maintenance = _parseNumber(maintenanceController.text);
-    final capacity = _parseNumber(capacityController.text);
-    final dailyFixedCost = _parseNumber(dailyFixedCostController.text);
-    if (consumption <= 0 ||
+    final parsedConsumption = parseAmount(consumptionController.text);
+    final parsedMaintenance = parseAmount(maintenanceController.text);
+    final parsedCapacity = parseAmount(capacityController.text);
+    final parsedDailyFixedCost = parseAmount(dailyFixedCostController.text);
+    final consumption = parsedConsumption ?? 0;
+    final maintenance = parsedMaintenance ?? 0;
+    final capacity = parsedCapacity ?? 0;
+    final dailyFixedCost = parsedDailyFixedCost ?? 0;
+    final hasInvalidText = (consumptionController.text.trim().isNotEmpty &&
+            parsedConsumption == null) ||
+        (maintenanceController.text.trim().isNotEmpty &&
+            parsedMaintenance == null) ||
+        (!isPersonal &&
+            ((capacityController.text.trim().isNotEmpty &&
+                    parsedCapacity == null) ||
+                (dailyFixedCostController.text.trim().isNotEmpty &&
+                    parsedDailyFixedCost == null)));
+    if (hasInvalidText ||
+        consumption <= 0 ||
         maintenance < 0 ||
         (!isPersonal && (capacity <= 0 || dailyFixedCost < 0))) {
       setState(() {
@@ -288,11 +314,13 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
           actions: [
             TextButton(
                 onPressed: () {
-                  final expense = _parseNumber(expenseController.text);
-                  final km = _parseNumber(kmController.text);
+                  final expense = parseAmount(expenseController.text);
+                  final km = parseAmount(kmController.text);
                   setDialogState(() {
-                    invalidKm = km <= 0;
-                    result = km > 0 && expense >= 0 ? expense / km : null;
+                    invalidKm = km == null || km <= 0;
+                    result = km != null && km > 0 && expense != null
+                        ? expense / km
+                        : null;
                   });
                 },
                 child: const Text('Calcular')),
@@ -403,8 +431,10 @@ class _PlateSummary extends StatelessWidget {
   }
 }
 
-double _parseNumber(String value) =>
-    double.tryParse(value.replaceAll(',', '.').trim()) ?? 0;
+String? _amountError(TextEditingController controller) =>
+    controller.text.trim().isNotEmpty && parseAmount(controller.text) == null
+        ? 'Ingresá un número válido.'
+        : null;
 
 String _numberText(double value) => value == 0
     ? ''

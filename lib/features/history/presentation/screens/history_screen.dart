@@ -4,11 +4,12 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/responsive_body.dart';
+import '../../../analysis/domain/models/profitability_status.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../domain/models/trip_record.dart';
 
-enum HistoryFilter { all, profitable, loss }
+enum HistoryFilter { all, profitable, low, loss }
 
 enum HistorySort { newest, oldest, highestProfit, lowestProfit }
 
@@ -95,6 +96,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   padding: const EdgeInsets.only(bottom: 10),
                                   child: _HistoryTripCard(
                                     trip: trips[index],
+                                    status: trips[index].trip.purpose ==
+                                            TripPurpose.personal
+                                        ? null
+                                        : controller.calculator.statusForValues(
+                                            netProfit: trips[index].netProfit,
+                                            marginPercent:
+                                                trips[index].marginPercent,
+                                          ),
                                     onOpen: () =>
                                         widget.onOpenTrip(trips[index]),
                                     onDuplicate: () =>
@@ -125,13 +134,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
           trip.route.originName.toLowerCase().contains(query) ||
           trip.route.destinationName.toLowerCase().contains(query);
       final isPersonal = trip.trip.purpose == TripPurpose.personal;
-      final isProfitable = trip.netProfit >= 0;
+      final status = controller.calculator.statusForValues(
+        netProfit: trip.netProfit,
+        marginPercent: trip.marginPercent,
+      );
       final matchesFilter = isPersonal
           ? filter == HistoryFilter.all
           : switch (filter) {
               HistoryFilter.all => true,
-              HistoryFilter.profitable => isProfitable,
-              HistoryFilter.loss => !isProfitable,
+              HistoryFilter.profitable =>
+                status == ProfitabilityStatus.profitable,
+              HistoryFilter.low => status == ProfitabilityStatus.low,
+              HistoryFilter.loss => status == ProfitabilityStatus.loss,
             };
       return matchesQuery && matchesFilter;
     }).toList();
@@ -201,6 +215,7 @@ class _HistoryControls extends StatelessWidget {
               for (final entry in const [
                 (HistoryFilter.all, 'Todos'),
                 (HistoryFilter.profitable, 'Conviene'),
+                (HistoryFilter.low, 'Margen bajo'),
                 (HistoryFilter.loss, 'No conviene'),
               ])
                 ChoiceChip(
@@ -225,6 +240,10 @@ class _HistoryControls extends StatelessWidget {
                   ButtonSegment(
                     value: HistoryFilter.profitable,
                     label: Text('Conviene'),
+                  ),
+                  ButtonSegment(
+                    value: HistoryFilter.low,
+                    label: Text('Margen bajo'),
                   ),
                   ButtonSegment(
                     value: HistoryFilter.loss,
@@ -281,6 +300,7 @@ class _HistoryControls extends StatelessWidget {
 class _HistoryTripCard extends StatelessWidget {
   const _HistoryTripCard({
     required this.trip,
+    required this.status,
     required this.onOpen,
     required this.onDuplicate,
     required this.onDelete,
@@ -288,6 +308,7 @@ class _HistoryTripCard extends StatelessWidget {
   });
 
   final TripRecord trip;
+  final ProfitabilityStatus? status;
   final Future<void> Function() onOpen;
   final Future<void> Function() onDuplicate;
   final VoidCallback onDelete;
@@ -296,14 +317,8 @@ class _HistoryTripCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPersonal = trip.trip.purpose == TripPurpose.personal;
-    final isProfitable = trip.netProfit >= 0;
-    final statusColor =
-        isProfitable ? AppColors.decisionGo : AppColors.decisionStop;
-    final statusLabel = isPersonal
-        ? 'Personal'
-        : isProfitable
-            ? 'Conviene'
-            : 'No conviene';
+    final statusColor = status?.color ?? AppColors.roadYellow;
+    final statusLabel = isPersonal ? 'Personal' : _historyStatusLabel(status!);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -416,6 +431,8 @@ class _HistoryTripCard extends StatelessWidget {
   double _effectiveDistance(TripRecord item) =>
       item.emptyReturn ? item.route.distanceKm * 2 : item.route.distanceKm;
 }
+
+String _historyStatusLabel(ProfitabilityStatus status) => status.label;
 
 class _QuickMetric extends StatelessWidget {
   const _QuickMetric(this.label, this.value, this.color);

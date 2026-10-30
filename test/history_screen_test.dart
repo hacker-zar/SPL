@@ -82,6 +82,57 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('history filters use the profitability status thresholds',
+      (tester) async {
+    final repository = MemoryTripRepository();
+    await repository.save(_record(
+      id: 'profitable',
+      origin: 'Conviene',
+      destination: 'Destino',
+      profit: 180000,
+    ));
+    await repository.save(_record(
+      id: 'low',
+      origin: 'Margen bajo',
+      destination: 'Destino',
+      profit: 50000,
+    ));
+    await repository.save(_record(
+      id: 'loss',
+      origin: 'No conviene',
+      destination: 'Destino',
+      profit: -30000,
+    ));
+    final controller = _controller(repository);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.dark(),
+      home: HistoryScreen(
+        controller: controller,
+        onOpenTrip: (_) async {},
+        onDuplicateTrip: (_) async {},
+        onStartTrip: () async {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Conviene'), findsWidgets);
+    expect(find.text('Margen bajo'), findsWidgets);
+    expect(find.text('No conviene'), findsWidgets);
+
+    await tester.tap(find.text('Margen bajo').first);
+    await tester.pump();
+    expect(find.text('Margen bajo → Destino'), findsOneWidget);
+    expect(find.text('Conviene → Destino'), findsNothing);
+    expect(find.text('No conviene → Destino'), findsNothing);
+
+    await tester.tap(find.text('No conviene').first);
+    await tester.pump();
+    expect(find.text('No conviene → Destino'), findsOneWidget);
+    expect(find.text('Margen bajo → Destino'), findsNothing);
+    controller.dispose();
+  });
+
   testWidgets('personal history shows total cost without profit or margin',
       (tester) async {
     final repository = MemoryTripRepository();

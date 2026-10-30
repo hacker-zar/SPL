@@ -290,7 +290,7 @@ class TripResultScreen extends StatelessWidget {
     BuildContext context,
     TripAnalysis analysis,
     double? distanceKm,
-    double? durationDays,
+    int? durationDays,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -344,7 +344,7 @@ class TripResultScreen extends StatelessWidget {
     BuildContext context,
     TripAnalysis analysis,
     double? distanceKm,
-    double? durationDays,
+    int? durationDays,
   ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,11 +540,7 @@ class TripResultScreen extends StatelessWidget {
     );
   }
 
-  String _statusLabel(ProfitabilityStatus status) => switch (status) {
-        ProfitabilityStatus.profitable => 'Margen saludable',
-        ProfitabilityStatus.low => 'Margen bajo',
-        ProfitabilityStatus.loss => 'No cubre los costos',
-      };
+  String _statusLabel(ProfitabilityStatus status) => status.label;
 
   double _estimatedFuelLiters() {
     final profile = controller.activeVehicle;
@@ -584,11 +580,11 @@ class _ProfitSummary extends StatelessWidget {
 
   final TripAnalysis analysis;
   final double? distanceKm;
-  final double? durationDays;
+  final int? durationDays;
 
   @override
   Widget build(BuildContext context) {
-    final days = durationDays?.ceil();
+    final days = durationDays;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
