@@ -69,6 +69,35 @@ void main() {
     expect(find.text('Precio por tonelada'), findsOneWidget);
     controller.dispose();
   });
+
+  testWidgets('amount field parses Argentine grouping and rejects invalid text',
+      (tester) async {
+    final controller = _controller();
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => OfferCostsStep(controller: controller),
+          ),
+        ),
+      ),
+    ));
+    final priceField = find.byWidgetPredicate((widget) =>
+        widget is TextField &&
+        widget.decoration?.labelText == 'Precio del viaje');
+
+    await tester.enterText(priceField, 'abc');
+    await tester.pump();
+    expect(find.text('Ingresá un importe válido.'), findsOneWidget);
+    expect(controller.flatRate, 0);
+
+    await tester.enterText(priceField, '1.050.000');
+    await tester.pump();
+    expect(controller.flatRate, 1050000);
+    expect(find.text('Ingresá un importe válido.'), findsNothing);
+    controller.dispose();
+  });
 }
 
 TripQuoteController _controller() => TripQuoteController(
