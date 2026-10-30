@@ -65,6 +65,12 @@ class ProfitabilityCalculator {
     );
   }
 
+  ProfitabilityStatus statusForValues({
+    required double netProfit,
+    required double marginPercent,
+  }) =>
+      _statusFor(netProfit, marginPercent);
+
   ProfitabilityStatus _statusFor(double netProfit, double marginPercent) {
     if (netProfit < 0) {
       return ProfitabilityStatus.loss;
