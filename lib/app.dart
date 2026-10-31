@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -46,18 +48,20 @@ class TripDecisionApp extends StatefulWidget {
 
 class _TripDecisionAppState extends State<TripDecisionApp> {
   late final TripQuoteController controller;
+  late final SessionProvider sessionProvider;
 
   @override
   void initState() {
     super.initState();
     final clientFuture = widget.supabaseInitializer();
-    final sessionProvider = SessionProvider(
+    sessionProvider = SessionProvider(
       clientLoader: () => clientFuture,
       anonymousSignIn: widget.anonymousSignIn,
     );
     controller = _createController(sessionProvider)
       ..load()
       ..loadHistory();
+    unawaited(sessionProvider.ensureUserId());
   }
 
   TripQuoteController _createController(SessionProvider sessionProvider) {
@@ -121,11 +125,13 @@ class _TripDecisionAppState extends State<TripDecisionApp> {
               controller: controller,
               personalModeEnabled: enablePersonalMode,
               feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+              sessionProvider: sessionProvider,
             )
           : TripQuoteScreen(
               controller: controller,
               personalModeEnabled: enablePersonalMode,
               feedbackWhatsAppNumber: feedbackWhatsAppNumber,
+              sessionProvider: sessionProvider,
             ),
     );
   }

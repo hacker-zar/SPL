@@ -15,9 +15,9 @@ import 'package:rentabilidad_flete/features/vehicle_profile/domain/models/vehicl
 
 void main() {
   test('personal trip calculates costs without a freight profile or income',
-      () {
+      () async {
     final controller = _controller()..startTrip(TripPurpose.personal);
-    controller.savePersonalVehicle(const VehicleProfile(
+    await controller.savePersonalVehicle(const VehicleProfile(
       consumptionLitersPer100Km: 10,
       maintenanceCostPerKm: 1,
       capacityTons: 0,
@@ -47,13 +47,13 @@ void main() {
       () async {
     final tripRepository = MemoryTripRepository();
     final controller = _controller(tripRepository: tripRepository)
-      ..startTrip(TripPurpose.personal)
-      ..savePersonalVehicle(const VehicleProfile(
-        consumptionLitersPer100Km: 10,
-        maintenanceCostPerKm: 1,
-        capacityTons: 0,
-      ))
-      ..route = _route;
+      ..startTrip(TripPurpose.personal);
+    await controller.savePersonalVehicle(const VehicleProfile(
+      consumptionLitersPer100Km: 10,
+      maintenanceCostPerKm: 1,
+      capacityTons: 0,
+    ));
+    controller.route = _route;
     controller.setFuelPrice(100);
     controller.setTolls(20);
     controller.setAllowances(30);

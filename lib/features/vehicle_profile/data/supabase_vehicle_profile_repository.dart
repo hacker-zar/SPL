@@ -17,16 +17,20 @@ class SupabaseVehicleProfileRepository implements VehicleProfileRepository {
   final VehicleProfileRepository _fallbackRepository;
 
   @override
-  Stream<VehicleProfile?> watch() {
+  Stream<VehicleProfile?> watch() =>
+      watchAll().map((profiles) => profiles.isEmpty ? null : profiles.first);
+
+  @override
+  Stream<List<VehicleProfile>> watchAll() {
     return Stream.multi((output) {
-      StreamSubscription<VehicleProfile?>? fallbackSubscription;
+      StreamSubscription<List<VehicleProfile>>? fallbackSubscription;
       StreamSubscription<List<Map<String, dynamic>>>? remoteSubscription;
       StreamSubscription<AuthState>? authSubscription;
       String? activeUserId;
 
       void watchFallback() {
         if (fallbackSubscription != null) return;
-        fallbackSubscription = _fallbackRepository.watch().listen(
+        fallbackSubscription = _fallbackRepository.watchAll().listen(
               output.add,
               onError: output.addError,
             );
@@ -55,12 +59,13 @@ class SupabaseVehicleProfileRepository implements VehicleProfileRepository {
         }
         remoteSubscription = client
             .from('vehicle_profiles')
-            .stream(primaryKey: ['user_id'])
+            .stream(primaryKey: ['id'])
             .eq('user_id', userId)
-            .limit(1)
+            .order('is_primary', ascending: false)
+            .order('created_at')
             .listen(
               (rows) => output.add(
-                rows.isEmpty ? null : VehicleProfile.fromMap(rows.first),
+                rows.map(VehicleProfile.fromMap).toList(growable: false),
               ),
               onError: output.addError,
             );
@@ -87,27 +92,42 @@ class SupabaseVehicleProfileRepository implements VehicleProfileRepository {
   }
 
   @override
-  Future<void> save(VehicleProfile profile) async {
+  Future<VehicleProfile> save(VehicleProfile profile) async {
     final userId = await _sessionProvider.ensureUserId();
     final client = await _sessionProvider.client;
     if (userId == null || client == null) {
-      await _fallbackRepository.save(profile);
-      return;
+      throw StateError(
+          'No hay una sesión de Supabase disponible para guardar el vehículo permanentemente.');
     }
-    await client.from('vehicle_profiles').upsert(
-          _toRow(profile, userId),
-          onConflict: 'user_id',
-        );
+    final saved = await client
+        .from('vehicle_profiles')
+        .upsert(
+          _toRow(profile, userId, profile.id),
+          onConflict: 'id',
+        )
+        .select()
+        .single();
+    return VehicleProfile.fromMap(saved);
   }
 
-  Map<String, dynamic> _toRow(VehicleProfile profile, String userId) {
+  Map<String, dynamic> _toRow(
+      VehicleProfile profile, String userId, String? id) {
     return {
+      if (id != null) 'id': id,
       'user_id': userId,
       'consumption_liters_per_100_km': profile.consumptionLitersPer100Km,
       'maintenance_cost_per_km': profile.maintenanceCostPerKm,
-      'capacity_tons': profile.capacityTons,
+      'capacity_tons': profile.capacityTons > 0 ? profile.capacityTons : null,
       'plate': profile.plate.isEmpty ? null : profile.plate,
       'daily_fixed_cost': profile.dailyFixedCost,
+      'vehicle_type': profile.vehicleType,
+      'brand': profile.brand.isEmpty ? null : profile.brand,
+      'model': profile.model.isEmpty ? null : profile.model,
+      'year': profile.year,
+      'fuel_type': profile.fuelType.isEmpty ? null : profile.fuelType,
+      'tire_cost_per_km': profile.tireCostPerKm,
+      'other_operating_costs_per_km': profile.otherOperatingCostsPerKm,
+      'is_primary': profile.isPrimary,
     };
   }
 }

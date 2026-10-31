@@ -16,6 +16,11 @@ void main() {
     await tester.pump();
     expect(find.text('Ingresá un número válido.'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('Guardar vehículo'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('Guardar vehículo'));
     await tester.pump();
     expect(find.textContaining('Ingresá consumo'), findsOneWidget);

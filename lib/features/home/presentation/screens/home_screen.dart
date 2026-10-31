@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/services/session_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../account/presentation/screens/account_screen.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
 import '../../../analysis/presentation/screens/trip_quote_screen.dart';
 import '../../../analysis/presentation/widgets/trip_wizard.dart';
@@ -14,12 +16,14 @@ class HomeScreen extends StatelessWidget {
     required this.controller,
     this.personalModeEnabled = false,
     this.feedbackWhatsAppNumber = '',
+    this.sessionProvider,
     super.key,
   });
 
   final TripQuoteController controller;
   final bool personalModeEnabled;
   final String feedbackWhatsAppNumber;
+  final SessionProvider? sessionProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +61,20 @@ class HomeScreen extends StatelessWidget {
                   onTap: () => _openHistory(context),
                 ),
                 FeedbackLink(phoneNumber: feedbackWhatsAppNumber),
+                if (sessionProvider != null) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => AccountScreen(
+                          sessionProvider: sessionProvider!,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.account_circle_outlined),
+                    label: const Text('Cuenta y datos guardados'),
+                  ),
+                ],
               ],
             ),
           ),
@@ -100,7 +118,7 @@ class HomeScreen extends StatelessWidget {
     if (!personalModeEnabled && trip.trip.purpose == TripPurpose.personal) {
       return;
     }
-    controller.openTrip(trip);
+    controller.openTripForResult(trip);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => TripResultScreen(

@@ -5,6 +5,8 @@ class TripAnalysis {
     required this.grossIncome,
     required this.fuelCost,
     required this.maintenanceCost,
+    this.tireCost = 0,
+    this.otherOperatingCost = 0,
     required this.fixedCosts,
     required this.totalCosts,
     required this.netProfit,
@@ -21,6 +23,8 @@ class TripAnalysis {
   final double grossIncome;
   final double fuelCost;
   final double maintenanceCost;
+  final double tireCost;
+  final double otherOperatingCost;
   final double fixedCosts;
   final double totalCosts;
   final double netProfit;

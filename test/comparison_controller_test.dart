@@ -10,7 +10,7 @@ import 'package:rentabilidad_flete/features/route_planning/domain/models/route_i
 import 'package:rentabilidad_flete/features/trip_data/domain/models/trip_inputs.dart';
 
 void main() {
-  test('recommends the trip with higher profit and labels each snapshot', () {
+  test('compares two to four saved trip snapshots without global ranking', () {
     final controller = ComparisonController();
     final tripA = _trip(label: '', profit: 200000, margin: 20);
     final tripB = _trip(label: '', profit: 350000, margin: 25);
@@ -21,9 +21,17 @@ void main() {
     expect(controller.canCompare, isTrue);
     expect(controller.trips[0].label, 'Viaje A');
     expect(controller.trips[1].label, 'Viaje B');
-    expect(controller.decision.recommended.label, 'Viaje B');
-    expect(controller.decision.absoluteDifference, 150000);
-    expect(controller.decision.reasons, contains('mayor ganancia neta'));
+    controller.add(_trip(label: '', profit: 100000, margin: 12));
+    controller.add(_trip(label: '', profit: 300000, margin: 24));
+    expect(controller.trips.map((trip) => trip.label),
+        ['Viaje A', 'Viaje B', 'Viaje C', 'Viaje D']);
+    controller.add(_trip(label: '', profit: 500000, margin: 30));
+    expect(controller.trips, hasLength(4));
+    expect(controller.canCompare, isTrue);
+    controller.remove(controller.trips[1]);
+    controller.add(_trip(label: '', profit: 50000, margin: 8));
+    expect(controller.trips.map((trip) => trip.label),
+        ['Viaje A', 'Viaje C', 'Viaje D', 'Viaje B']);
     controller.dispose();
   });
 }

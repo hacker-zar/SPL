@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/services/session_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/layout/breakpoints.dart';
@@ -7,6 +8,7 @@ import '../../../../shared/widgets/metric_tile.dart';
 import '../../../../shared/widgets/responsive_body.dart';
 import '../../../../shared/widgets/feedback_link.dart';
 import '../../../comparison/domain/models/comparison_trip.dart';
+import '../../../account/presentation/screens/account_screen.dart';
 import '../../../history/domain/models/trip_record.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
@@ -22,6 +24,7 @@ class TripQuoteScreen extends StatefulWidget {
     this.feedbackWhatsAppNumber = '',
     this.initialStep,
     this.onComparisonTripReady,
+    this.sessionProvider,
     super.key,
   });
 
@@ -30,6 +33,7 @@ class TripQuoteScreen extends StatefulWidget {
   final String feedbackWhatsAppNumber;
   final WizardStep? initialStep;
   final ValueChanged<ComparisonTrip>? onComparisonTripReady;
+  final SessionProvider? sessionProvider;
 
   @override
   State<TripQuoteScreen> createState() => _TripQuoteScreenState();
@@ -57,6 +61,18 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
             icon: const Icon(Icons.history),
             onPressed: _showHistory,
           ),
+          if (widget.sessionProvider != null)
+            IconButton(
+              tooltip: 'Cuenta',
+              icon: const Icon(Icons.account_circle_outlined),
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => AccountScreen(
+                    sessionProvider: widget.sessionProvider!,
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(width: 4),
         ],
       ),
@@ -121,7 +137,7 @@ class _TripQuoteScreenState extends State<TripQuoteScreen> {
         trip.trip.purpose == TripPurpose.personal) {
       return;
     }
-    controller.openTrip(trip);
+    controller.openTripForResult(trip);
     setState(() => _step = WizardStep.review);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -243,7 +259,9 @@ class TripResultScreen extends StatelessWidget {
         const SizedBox(height: 12),
         _ResultCard(
           title: 'Desglose de costos',
-          child: _MetricGrid(
+          child: controller.displayedSavedTrip?.vehicleProfile == null
+              ? _savedBreakdownUnavailable(context)
+              : _MetricGrid(
             children: [
               MetricTile(
                 label: 'Combustible (${decimal(_estimatedFuelLiters())} L)',
@@ -253,6 +271,10 @@ class TripResultScreen extends StatelessWidget {
                 label: 'Mantenimiento',
                 value: money(analysis.maintenanceCost),
               ),
+              if (analysis.tireCost > 0)
+                MetricTile(label: 'Neumáticos', value: money(analysis.tireCost)),
+              if (analysis.otherOperatingCost > 0)
+                MetricTile(label: 'Otros costos operativos', value: money(analysis.otherOperatingCost)),
               MetricTile(
                 label: 'Peajes',
                 value: controller.costs.tolls == 0
@@ -443,6 +465,13 @@ class TripResultScreen extends StatelessWidget {
   }
 
   Widget _costBreakdown(BuildContext context, TripAnalysis analysis) {
+    if (controller.displayedSavedTrip?.vehicleProfile == null &&
+        controller.displayedSavedTrip != null) {
+      return _ResultCard(
+        title: 'Desglose de costos',
+        child: _savedBreakdownUnavailable(context),
+      );
+    }
     return _ResultCard(
       title: 'Adónde se va la plata',
       child: Column(
@@ -466,6 +495,10 @@ class TripResultScreen extends StatelessWidget {
             amount: analysis.maintenanceCost,
             total: analysis.totalCosts,
           ),
+          if (analysis.tireCost > 0)
+            _CostBreakdownRow(label: 'Neumáticos', amount: analysis.tireCost, total: analysis.totalCosts),
+          if (analysis.otherOperatingCost > 0)
+            _CostBreakdownRow(label: 'Otros costos operativos', amount: analysis.otherOperatingCost, total: analysis.totalCosts),
           _CostBreakdownRow(
             label: 'Costos del camión por tiempo',
             amount: analysis.timeCost,
@@ -487,6 +520,11 @@ class TripResultScreen extends StatelessWidget {
     );
   }
 
+  Widget _savedBreakdownUnavailable(BuildContext context) => Text(
+        'Este viaje se guardó antes de conservar los datos del vehículo. El total original se mantiene, pero no está disponible el desglose por rubro.',
+        style: Theme.of(context).textTheme.bodyMedium,
+      );
+
   Widget _unconfiguredCostNotice() {
     if ((controller.vehicleProfile?.dailyFixedCost ?? 0) != 0) {
       return const SizedBox.shrink();
@@ -504,6 +542,16 @@ class TripResultScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (controller.errorMessage != null) ...[
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(controller.errorMessage!),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         OutlinedButton.icon(
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.edit_outlined),
@@ -566,6 +614,9 @@ class TripResultScreen extends StatelessWidget {
       return;
     }
 
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Simulación guardada en tu historial.')),
+    );
     controller.resetSimulation();
     Navigator.of(context).popUntil((route) => route.isFirst);
   }

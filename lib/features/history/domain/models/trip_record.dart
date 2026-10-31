@@ -2,6 +2,8 @@ import '../../../costs/domain/models/cost_inputs.dart';
 import '../../../route_planning/domain/models/route_info.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../../analysis/domain/models/trip_analysis.dart';
+import '../../../analysis/domain/models/profitability_status.dart';
+import '../../../vehicle_profile/domain/models/vehicle_profile.dart';
 
 class TripRecord {
   const TripRecord({
@@ -15,6 +17,8 @@ class TripRecord {
     required this.totalCosts,
     required this.netProfit,
     required this.marginPercent,
+    this.vehicleProfile,
+    this.calculationStatus,
   });
 
   final String id;
@@ -27,6 +31,15 @@ class TripRecord {
   final double totalCosts;
   final double netProfit;
   final double marginPercent;
+  final VehicleProfile? vehicleProfile;
+  final String? calculationStatus;
+
+  ProfitabilityStatus? get savedStatus => switch (calculationStatus) {
+        'profitable' => ProfitabilityStatus.profitable,
+        'low' => ProfitabilityStatus.low,
+        'loss' => ProfitabilityStatus.loss,
+        _ => null,
+      };
 
   factory TripRecord.fromAnalysis({
     required String id,
@@ -35,6 +48,7 @@ class TripRecord {
     required CostInputs costs,
     required bool emptyReturn,
     required TripAnalysis analysis,
+    VehicleProfile? vehicleProfile,
   }) {
     return TripRecord(
       id: id,
@@ -48,6 +62,8 @@ class TripRecord {
       netProfit: trip.purpose == TripPurpose.personal ? 0 : analysis.netProfit,
       marginPercent:
           trip.purpose == TripPurpose.personal ? 0 : analysis.marginPercent,
+      vehicleProfile: vehicleProfile,
+      calculationStatus: analysis.status.name,
     );
   }
 
@@ -62,6 +78,8 @@ class TripRecord {
         'totalCosts': totalCosts,
         'netProfit': netProfit,
         'marginPercent': marginPercent,
+        'vehicleProfile': vehicleProfile?.toMap(userId: userId),
+        'calculationStatus': calculationStatus,
       };
 
   factory TripRecord.fromMap(String id, Map<String, dynamic> map) {
@@ -85,6 +103,15 @@ class TripRecord {
       marginPercent: (map['margin_percent'] as num?)?.toDouble() ??
           (map['marginPercent'] as num?)?.toDouble() ??
           0,
+      vehicleProfile: _profileSnapshot(map),
+      calculationStatus: map['calculation_status'] as String? ??
+          map['calculationStatus'] as String?,
     );
+  }
+
+  static VehicleProfile? _profileSnapshot(Map<String, dynamic> map) {
+    final raw = map['vehicle_profile_snapshot'] ?? map['vehicleProfile'];
+    if (raw is! Map) return null;
+    return VehicleProfile.fromMap(Map<String, dynamic>.from(raw));
   }
 }

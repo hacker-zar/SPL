@@ -6,6 +6,7 @@ import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/responsive_body.dart';
 import '../../../analysis/domain/models/profitability_status.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
+import '../../../comparison/presentation/screens/comparison_screen.dart';
 import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../domain/models/trip_record.dart';
 
@@ -58,7 +59,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Historial')),
+      appBar: AppBar(
+        title: const Text('Historial'),
+        actions: [
+          IconButton(
+            tooltip: 'Comparar viajes guardados',
+            icon: const Icon(Icons.compare_arrows_outlined),
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => ComparisonScreen(tripController: controller),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 900,
@@ -83,6 +97,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       onSortChanged: (value) => setState(() => sort = value),
                     ),
                   ),
+                  if (controller.historyErrorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.cloud_off_outlined),
+                          title: Text(controller.historyErrorMessage!),
+                          trailing: IconButton(
+                            tooltip: 'Reintentar',
+                            icon: const Icon(Icons.refresh),
+                            onPressed: () => controller.loadHistory(),
+                          ),
+                        ),
+                      ),
+                    ),
                   Expanded(
                     child: controller.history.isEmpty
                         ? _EmptyHistory(onStartTrip: widget.onStartTrip)
@@ -99,16 +128,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     status: trips[index].trip.purpose ==
                                             TripPurpose.personal
                                         ? null
-                                        : controller.calculator.statusForValues(
-                                            netProfit: trips[index].netProfit,
-                                            marginPercent:
-                                                trips[index].marginPercent,
-                                          ),
+                                        : _statusFor(trips[index]),
                                     onOpen: () =>
                                         widget.onOpenTrip(trips[index]),
                                     onDuplicate: () =>
                                         widget.onDuplicateTrip(trips[index]),
-                                    onDelete: () => _showDeleteUnavailable(),
+                                    onDelete: () =>
+                                        _confirmDelete(trips[index]),
                                     onShare: () => _showSharePlaceholder(),
                                   ),
                                 ),
@@ -134,10 +160,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           trip.route.originName.toLowerCase().contains(query) ||
           trip.route.destinationName.toLowerCase().contains(query);
       final isPersonal = trip.trip.purpose == TripPurpose.personal;
-      final status = controller.calculator.statusForValues(
-        netProfit: trip.netProfit,
-        marginPercent: trip.marginPercent,
-      );
+      final status =
+          trip.trip.purpose == TripPurpose.personal ? null : _statusFor(trip);
       final matchesFilter = isPersonal
           ? filter == HistoryFilter.all
           : switch (filter) {
@@ -161,14 +185,46 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return trips;
   }
 
-  void _showDeleteUnavailable() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+  ProfitabilityStatus _statusFor(TripRecord trip) =>
+      trip.savedStatus ??
+      controller.calculator.statusForValues(
+        netProfit: trip.netProfit,
+        marginPercent: trip.marginPercent,
+      );
+
+  Future<void> _confirmDelete(TripRecord trip) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar viaje guardado'),
         content: Text(
-          'La eliminación permanente se incorporará cuando el repositorio soporte borrar simulaciones.',
-        ),
+            '¿Querés eliminar ${trip.route.originName} → ${trip.route.destinationName} del historial?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Eliminar')),
+        ],
       ),
     );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    try {
+      await controller.deleteTrip(trip.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Viaje eliminado.')));
+      }
+    } on Object catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'No se pudo eliminar el viaje. Revisá tu conexión e intentá de nuevo.')));
+      }
+    }
   }
 
   void _showSharePlaceholder() {

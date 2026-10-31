@@ -44,12 +44,14 @@ class SupabaseTripRepository implements TripRepository {
         remoteSubscription = null;
 
         if (userId == null) {
+          output.addError(StateError('No hay una sesión de Netokm disponible.'));
           watchFallback();
           return;
         }
 
         final client = await _sessionProvider.client;
         if (client == null) {
+          output.addError(StateError('Supabase no está disponible.'));
           watchFallback();
           return;
         }
@@ -72,6 +74,7 @@ class SupabaseTripRepository implements TripRepository {
       unawaited(() async {
         final client = await _sessionProvider.client;
         if (client == null) {
+          output.addError(StateError('Supabase no está disponible.'));
           watchFallback();
           return;
         }
@@ -94,10 +97,21 @@ class SupabaseTripRepository implements TripRepository {
     final userId = await _sessionProvider.ensureUserId();
     final client = await _sessionProvider.client;
     if (userId == null || client == null) {
-      await _fallbackRepository.save(trip);
-      return;
+      throw StateError(
+          'No hay una sesión de Supabase disponible para guardar permanentemente.');
     }
     await client.from('trips').insert(_toRow(trip, userId));
+  }
+
+  @override
+  Future<void> delete(String tripId) async {
+    final userId = await _sessionProvider.currentUserId();
+    final client = await _sessionProvider.client;
+    if (userId == null || client == null) {
+      throw StateError(
+          'No hay una sesión de Supabase disponible para eliminar el viaje.');
+    }
+    await client.from('trips').delete().eq('id', tripId).eq('user_id', userId);
   }
 
   Map<String, dynamic> _toRow(TripRecord trip, String userId) {
@@ -113,6 +127,9 @@ class SupabaseTripRepository implements TripRepository {
       'route': trip.route.toMap(),
       'trip': trip.trip.toMap(),
       'costs': trip.costs.toMap(),
+      'vehicle_id': trip.vehicleProfile?.id,
+      'vehicle_profile_snapshot': trip.vehicleProfile?.toMap(userId: userId),
+      'calculation_status': trip.calculationStatus,
       'income': trip.income,
       'total_costs': trip.totalCosts,
       'net_profit': trip.netProfit,

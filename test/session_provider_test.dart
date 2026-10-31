@@ -28,6 +28,22 @@ void main() {
         ['anonymous-user', 'anonymous-user']);
   });
 
+  test('anonymous sign-in failures can be retried', () async {
+    var attempts = 0;
+    final provider = SessionProvider(
+      clientLoader: () async => _client(),
+      anonymousSignIn: (_) async {
+        attempts++;
+        if (attempts == 1) throw StateError('offline');
+        return 'guest-user';
+      },
+    );
+
+    expect(await provider.ensureUserId(), isNull);
+    expect(await provider.ensureUserId(), 'guest-user');
+    expect(attempts, 2);
+  });
+
   testWidgets('first screen renders while Supabase initialization is pending',
       (tester) async {
     final neverCompletes = Completer<SupabaseClient?>();
@@ -39,7 +55,7 @@ void main() {
     expect(find.byTooltip('Historial'), findsOneWidget);
   });
 
-  testWidgets('opening the app does not create an anonymous session',
+  testWidgets('opening the app creates one anonymous session after bootstrap',
       (tester) async {
     final client = _client();
     var signInCount = 0;
@@ -53,8 +69,9 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 10));
 
-    expect(signInCount, 0);
+    expect(signInCount, 1);
   });
 }
 
