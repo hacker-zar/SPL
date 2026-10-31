@@ -21,4 +21,10 @@ class MemoryTripRepository implements TripRepository {
     _trips.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     _controller.add([..._trips]);
   }
+
+  @override
+  Future<void> delete(String tripId) async {
+    _trips.removeWhere((trip) => trip.id == tripId);
+    _controller.add([..._trips]);
+  }
 }

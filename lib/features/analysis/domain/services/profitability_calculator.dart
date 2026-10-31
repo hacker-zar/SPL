@@ -35,10 +35,14 @@ class ProfitabilityCalculator {
     final fuelCost = fuelLiters * costs.fuelPricePerLiter;
     final maintenanceCost =
         effectiveRoute.distanceKm * vehicleProfile.maintenanceCostPerKm;
+    final tireCost = effectiveRoute.distanceKm * vehicleProfile.tireCostPerKm;
+    final otherOperatingCost = effectiveRoute.distanceKm *
+        vehicleProfile.otherOperatingCostsPerKm;
     final fixedCosts = costs.tolls + costs.allowances;
     final timeCost =
         vehicleProfile.dailyFixedCost * effectiveRoute.durationDays;
-    final totalCosts = fuelCost + maintenanceCost + fixedCosts + timeCost;
+    final totalCosts = fuelCost + maintenanceCost + tireCost +
+        otherOperatingCost + fixedCosts + timeCost;
     final netProfit = grossIncome - totalCosts;
     final marginPercent =
         grossIncome == 0 ? 0.0 : (netProfit / grossIncome) * 100;
@@ -51,6 +55,8 @@ class ProfitabilityCalculator {
       grossIncome: grossIncome,
       fuelCost: fuelCost,
       maintenanceCost: maintenanceCost,
+      tireCost: tireCost,
+      otherOperatingCost: otherOperatingCost,
       fixedCosts: fixedCosts,
       timeCost: timeCost,
       totalCosts: totalCosts,

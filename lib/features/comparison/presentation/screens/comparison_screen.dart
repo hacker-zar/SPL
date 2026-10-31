@@ -5,8 +5,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/money_format.dart';
 import '../../../../shared/widgets/metric_tile.dart';
 import '../../../analysis/presentation/controllers/trip_quote_controller.dart';
-import '../../../analysis/presentation/screens/trip_quote_screen.dart';
 import '../../../history/domain/models/trip_record.dart';
+import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../domain/models/comparison_trip.dart';
 import '../controllers/comparison_controller.dart';
 
@@ -68,14 +68,6 @@ class _ComparisonScreenState extends State<ComparisonScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       OutlinedButton.icon(
-                        onPressed: _addTrip,
-                        icon: const Icon(Icons.add_road_outlined),
-                        label: Text(
-                          'Agregar ${comparisonController.nextLabel}',
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
                         onPressed: _addFromHistory,
                         icon: const Icon(Icons.history_outlined),
                         label: const Text('Elegir del historial'),
@@ -101,18 +93,6 @@ class _ComparisonScreenState extends State<ComparisonScreen> {
     );
   }
 
-  Future<void> _addTrip() {
-    widget.tripController.resetSimulation();
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (context) => TripQuoteScreen(
-          controller: widget.tripController,
-          onComparisonTripReady: comparisonController.add,
-        ),
-      ),
-    );
-  }
-
   Future<void> _openResult() {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -132,28 +112,25 @@ class _ComparisonScreenState extends State<ComparisonScreen> {
         tripController: widget.tripController,
         addedTripIds:
             comparisonController.trips.map((trip) => trip.record.id).toSet(),
+        selectedPurpose: comparisonController.trips.isEmpty
+            ? null
+            : comparisonController.trips.first.record.trip.purpose,
       ),
     );
     if (!mounted || selected == null) {
       return;
     }
 
-    final analysis = widget.tripController.analysisForRecord(selected);
-    if (analysis == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Configurá tu camión para comparar este viaje.'),
-        ),
-      );
-      return;
-    }
+    final analysis = widget.tripController.analysisForRecord(selected)!;
     comparisonController.add(
       ComparisonTrip(label: '', record: selected, analysis: analysis),
     );
   }
 }
 
-class ComparisonResultScreen extends StatelessWidget {
+enum _ComparisonSort { profit, margin, costPerKm }
+
+class ComparisonResultScreen extends StatefulWidget {
   const ComparisonResultScreen({
     required this.comparisonController,
     super.key,
@@ -162,16 +139,55 @@ class ComparisonResultScreen extends StatelessWidget {
   final ComparisonController comparisonController;
 
   @override
+  State<ComparisonResultScreen> createState() => _ComparisonResultScreenState();
+}
+
+class _ComparisonResultScreenState extends State<ComparisonResultScreen> {
+  _ComparisonSort _sort = _ComparisonSort.profit;
+
+  @override
   Widget build(BuildContext context) {
-    final decision = comparisonController.decision;
-    final trips = comparisonController.trips;
+    final trips = [...widget.comparisonController.trips]..sort(_sortTrips);
+    final personal = trips.first.record.trip.purpose == TripPurpose.personal;
     return Scaffold(
-      appBar: AppBar(title: const Text('Resultado comparativo')),
+      appBar: AppBar(
+        title: const Text('Resultado comparativo'),
+        actions: [
+          PopupMenuButton<_ComparisonSort>(
+            tooltip: 'Ordenar viajes',
+            icon: const Icon(Icons.sort),
+            onSelected: (value) => setState(() => _sort = value),
+            itemBuilder: (context) => [
+              if (personal)
+                const PopupMenuItem(
+                    value: _ComparisonSort.profit,
+                    child: Text('Ordenar por costo total'))
+              else ...[
+                const PopupMenuItem(
+                    value: _ComparisonSort.profit,
+                    child: Text('Ordenar por ganancia')),
+                const PopupMenuItem(
+                    value: _ComparisonSort.margin,
+                    child: Text('Ordenar por margen')),
+              ],
+              const PopupMenuItem(
+                  value: _ComparisonSort.costPerKm,
+                  child: Text('Ordenar por costo/km')),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            _RecommendationCard(decision: decision),
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                    'Cada indicador destaca el viaje con el valor más conveniente. La elección también depende de tus tiempos, costos y necesidades operativas.'),
+              ),
+            ),
             const SizedBox(height: 14),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -181,7 +197,7 @@ class ComparisonResultScreen extends StatelessWidget {
                       for (final trip in trips) ...[
                         _TripMetricsCard(
                           trip: trip,
-                          isRecommended: trip == decision.recommended,
+                          comparedTrips: trips,
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -195,7 +211,7 @@ class ComparisonResultScreen extends StatelessWidget {
                       Expanded(
                         child: _TripMetricsCard(
                           trip: trips[index],
-                          isRecommended: trips[index] == decision.recommended,
+                          comparedTrips: trips,
                         ),
                       ),
                       if (index < trips.length - 1) const SizedBox(width: 12),
@@ -204,13 +220,23 @@ class ComparisonResultScreen extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 14),
-            _DifferenceCard(decision: decision),
           ],
         ),
       ),
     );
   }
+
+  int _sortTrips(ComparisonTrip first, ComparisonTrip second) =>
+      switch (_sort) {
+        _ComparisonSort.profit =>
+          first.record.trip.purpose == TripPurpose.personal
+              ? first.record.totalCosts.compareTo(second.record.totalCosts)
+              : second.record.netProfit.compareTo(first.record.netProfit),
+        _ComparisonSort.margin =>
+          second.record.marginPercent.compareTo(first.record.marginPercent),
+        _ComparisonSort.costPerKm =>
+          first.costPerKm.compareTo(second.costPerKm),
+      };
 }
 
 class _TripSelectionCard extends StatelessWidget {
@@ -221,13 +247,16 @@ class _TripSelectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final summary = trip.record.trip.purpose == TripPurpose.personal
+        ? '${money(trip.record.totalCosts)} de costo'
+        : '${money(trip.record.netProfit)} de ganancia';
     return Card(
       child: ListTile(
         leading: const Icon(Icons.local_shipping_outlined),
         title: Text(trip.label),
         subtitle: Text(
           '${trip.record.route.originName} → ${trip.record.route.destinationName}\n'
-          '${decimal(trip.distanceKm)} km · ${money(trip.record.netProfit)} de ganancia',
+          '${decimal(trip.distanceKm)} km · $summary',
         ),
         isThreeLine: true,
         trailing: IconButton(
@@ -244,10 +273,12 @@ class _HistoryTripPicker extends StatelessWidget {
   const _HistoryTripPicker({
     required this.tripController,
     required this.addedTripIds,
+    required this.selectedPurpose,
   });
 
   final TripQuoteController tripController;
   final Set<String> addedTripIds;
+  final TripPurpose? selectedPurpose;
 
   @override
   Widget build(BuildContext context) {
@@ -289,9 +320,11 @@ class _HistoryTripPicker extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final record = records[index];
                     final alreadyAdded = addedTripIds.contains(record.id);
+                    final purposeMismatch = selectedPurpose != null &&
+                        record.trip.purpose != selectedPurpose;
                     return Card(
                       child: ListTile(
-                        enabled: !alreadyAdded,
+                        enabled: !alreadyAdded && !purposeMismatch,
                         leading: const Icon(Icons.route_outlined),
                         title: Text(
                           '${record.route.originName} → ${record.route.destinationName}',
@@ -304,8 +337,10 @@ class _HistoryTripPicker extends StatelessWidget {
                         isThreeLine: true,
                         trailing: alreadyAdded
                             ? const Text('Agregado')
-                            : const Icon(Icons.add_circle_outline),
-                        onTap: alreadyAdded
+                            : purposeMismatch
+                                ? const Text('Otro modo')
+                                : const Icon(Icons.add_circle_outline),
+                        onTap: alreadyAdded || purposeMismatch
                             ? null
                             : () => Navigator.of(context).pop(record),
                       ),
@@ -321,87 +356,27 @@ class _HistoryTripPicker extends StatelessWidget {
   }
 }
 
-class _RecommendationCard extends StatelessWidget {
-  const _RecommendationCard({required this.decision});
-
-  final ComparisonDecision decision;
-
-  @override
-  Widget build(BuildContext context) {
-    final headline = decision.bothAreLosses
-        ? 'Ningún viaje cubre los costos estimados.'
-        : 'Conviene aceptar el ${decision.recommended.label}.';
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.roadYellow,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.emoji_events_outlined, color: AppColors.asphalt),
-                SizedBox(width: 8),
-                Text(
-                  'RECOMENDACIÓN',
-                  style: TextStyle(
-                    color: AppColors.asphalt,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              headline,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.asphalt,
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            if (decision.bothAreLosses)
-              const Text(
-                'El viaje recomendado pierde menos dinero, pero conviene renegociar ambas ofertas.',
-                style: TextStyle(color: AppColors.asphalt),
-              )
-            else
-              Text(
-                'Motivos: ${decision.reasons.join(', ')}.',
-                style: const TextStyle(color: AppColors.asphalt),
-              ),
-            if (decision.isClose) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'La diferencia económica es pequeña. Otros factores operativos también pueden influir en la decisión.',
-                style: TextStyle(
-                  color: AppColors.asphalt,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TripMetricsCard extends StatelessWidget {
   const _TripMetricsCard({
     required this.trip,
-    required this.isRecommended,
+    required this.comparedTrips,
   });
 
   final ComparisonTrip trip;
-  final bool isRecommended;
+  final List<ComparisonTrip> comparedTrips;
+
+  String? _bestLabel(num value, Iterable<num> values, {bool higher = true}) {
+    final all = values.toList();
+    if (all.length < 2) return null;
+    final best = higher
+        ? all.reduce((a, b) => a > b ? a : b)
+        : all.reduce((a, b) => a < b ? a : b);
+    return value == best ? (higher ? 'Mayor' : 'Menor') : null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final personal = trip.record.trip.purpose == TripPurpose.personal;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -416,27 +391,77 @@ class _TripMetricsCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                if (isRecommended)
-                  const Icon(Icons.emoji_events_outlined,
-                      color: AppColors.roadYellow),
               ],
             ),
             const SizedBox(height: 10),
             _MetricList(
               children: [
-                _MetricItem('Ganancia estimada', money(trip.record.netProfit)),
-                _MetricItem('Margen', '${decimal(trip.record.marginPercent)}%'),
-                _MetricItem('Costo total', money(trip.record.totalCosts)),
-                _MetricItem('Ingreso', money(trip.record.income)),
-                _MetricItem('Kilómetros', '${decimal(trip.distanceKm)} km'),
-                _MetricItem('Tiempo', '${decimal(trip.durationHours)} h'),
-                _MetricItem('Ganancia/km', money(trip.profitPerKm)),
-                _MetricItem('Ganancia/hora', money(trip.profitPerHour)),
-                _MetricItem('ROI', '${decimal(trip.roiPercent)}%'),
-                _MetricItem('Costo/km', money(trip.costPerKm)),
-                _MetricItem('Ingreso/km', money(trip.incomePerKm)),
+                if (!personal)
+                  _MetricItem(
+                      'Ganancia neta',
+                      money(trip.record.netProfit),
+                      _bestLabel(trip.record.netProfit,
+                          comparedTrips.map((t) => t.record.netProfit))),
+                if (!personal)
+                  _MetricItem(
+                      'Margen',
+                      '${decimal(trip.record.marginPercent)}%',
+                      _bestLabel(trip.record.marginPercent,
+                          comparedTrips.map((t) => t.record.marginPercent))),
                 _MetricItem(
-                    'Rentabilidad/litro', money(trip.profitabilityPerLiter)),
+                    'Costo total',
+                    money(trip.record.totalCosts),
+                    _bestLabel(trip.record.totalCosts,
+                        comparedTrips.map((t) => t.record.totalCosts),
+                        higher: false)),
+                if (!personal)
+                  _MetricItem('Ingreso', money(trip.record.income)),
+                _MetricItem('Kilómetros', '${decimal(trip.distanceKm)} km'),
+                _MetricItem(
+                    'Tiempo',
+                    '${decimal(trip.durationHours)} h',
+                    _bestLabel(trip.durationHours,
+                        comparedTrips.map((t) => t.durationHours),
+                        higher: false)),
+                if (!personal)
+                  _MetricItem(
+                      'Ganancia/km',
+                      money(trip.profitPerKm),
+                      _bestLabel(trip.profitPerKm,
+                          comparedTrips.map((t) => t.profitPerKm))),
+                if (!personal)
+                  _MetricItem(
+                      'Ganancia/hora',
+                      money(trip.profitPerHour),
+                      _bestLabel(trip.profitPerHour,
+                          comparedTrips.map((t) => t.profitPerHour))),
+                if (!personal)
+                  _MetricItem('ROI', '${decimal(trip.roiPercent)}%'),
+                _MetricItem(
+                    'Costo/km',
+                    money(trip.costPerKm),
+                    _bestLabel(
+                        trip.costPerKm, comparedTrips.map((t) => t.costPerKm),
+                        higher: false)),
+                if (!personal)
+                  _MetricItem(
+                      'Ingreso/km',
+                      money(trip.incomePerKm),
+                      _bestLabel(trip.incomePerKm,
+                          comparedTrips.map((t) => t.incomePerKm))),
+                if (!personal)
+                  _MetricItem(
+                      'Rentabilidad/litro',
+                      trip.record.vehicleProfile == null
+                          ? 'Dato no disponible'
+                          : money(trip.profitabilityPerLiter),
+                      trip.record.vehicleProfile == null
+                          ? null
+                          : _bestLabel(
+                              trip.profitabilityPerLiter,
+                              comparedTrips
+                                  .where((t) => t.record.vehicleProfile != null)
+                                  .map((t) => t.profitabilityPerLiter))),
               ],
             ),
           ],
@@ -458,7 +483,11 @@ class _MetricList extends StatelessWidget {
         for (final item in children)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: MetricTile(label: item.label, value: item.value),
+            child: MetricTile(
+                label: item.bestLabel == null
+                    ? item.label
+                    : '${item.label} · ${item.bestLabel}',
+                value: item.value),
           ),
       ],
     );
@@ -466,34 +495,9 @@ class _MetricList extends StatelessWidget {
 }
 
 class _MetricItem {
-  const _MetricItem(this.label, this.value);
+  const _MetricItem(this.label, this.value, [this.bestLabel]);
 
   final String label;
   final String value;
-}
-
-class _DifferenceCard extends StatelessWidget {
-  const _DifferenceCard({required this.decision});
-
-  final ComparisonDecision decision;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Diferencia económica',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              '${decision.recommended.label} supera a ${decision.alternative.label} por ${money(decision.absoluteDifference)} (${decimal(decision.percentageDifference)}%).',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  final String? bestLabel;
 }

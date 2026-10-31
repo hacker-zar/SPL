@@ -3,5 +3,11 @@ import '../models/vehicle_profile.dart';
 abstract class VehicleProfileRepository {
   Stream<VehicleProfile?> watch();
 
-  Future<void> save(VehicleProfile profile);
+  Stream<List<VehicleProfile>> watchAll() async* {
+    await for (final profile in watch()) {
+      yield profile == null ? const [] : [profile];
+    }
+  }
+
+  Future<VehicleProfile> save(VehicleProfile profile);
 }

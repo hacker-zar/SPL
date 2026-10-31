@@ -4,4 +4,6 @@ abstract class TripRepository {
   Stream<List<TripRecord>> watchRecent();
 
   Future<void> save(TripRecord trip);
+
+  Future<void> delete(String tripId);
 }

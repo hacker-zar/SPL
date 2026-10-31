@@ -26,6 +26,12 @@ class VehicleStep extends StatelessWidget {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (controller.vehicleProfileErrorMessage != null)
+                    Text(
+                      controller.vehicleProfileErrorMessage!,
+                      style:
+                          TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
                   Text(personal
                       ? 'Vehículo configurado ✓'
                       : 'Camión configurado ✓'),
@@ -101,10 +107,17 @@ class VehicleStep extends StatelessWidget {
     );
     if (result != null) {
       if (controller.purpose == TripPurpose.personal) {
-        controller.savePersonalVehicle(result);
+        await controller.savePersonalVehicle(result);
       } else {
         await controller.saveVehicleProfile(result);
       }
+      if (!context.mounted) return;
+      final error = controller.errorMessage;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Vehículo guardado.'),
+        ),
+      );
     }
   }
 }
@@ -128,6 +141,13 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
   late final TextEditingController capacityController;
   late final TextEditingController plateController;
   late final TextEditingController dailyFixedCostController;
+  late String selectedVehicleType;
+  late final TextEditingController brandController;
+  late final TextEditingController modelController;
+  late final TextEditingController yearController;
+  late final TextEditingController fuelTypeController;
+  late final TextEditingController tireCostController;
+  late final TextEditingController otherCostsController;
   String? validationMessage;
 
   @override
@@ -143,6 +163,17 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     plateController = TextEditingController(text: profile?.plate ?? '');
     dailyFixedCostController =
         TextEditingController(text: _numberText(profile?.dailyFixedCost ?? 0));
+    selectedVehicleType =
+        profile?.vehicleType ?? (isPersonal ? 'auto' : 'camion');
+    brandController = TextEditingController(text: profile?.brand ?? '');
+    modelController = TextEditingController(text: profile?.model ?? '');
+    yearController =
+        TextEditingController(text: profile?.year?.toString() ?? '');
+    fuelTypeController = TextEditingController(text: profile?.fuelType ?? '');
+    tireCostController =
+        TextEditingController(text: _numberText(profile?.tireCostPerKm ?? 0));
+    otherCostsController = TextEditingController(
+        text: _numberText(profile?.otherOperatingCostsPerKm ?? 0));
   }
 
   @override
@@ -152,6 +183,12 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     capacityController.dispose();
     plateController.dispose();
     dailyFixedCostController.dispose();
+    brandController.dispose();
+    modelController.dispose();
+    yearController.dispose();
+    fuelTypeController.dispose();
+    tireCostController.dispose();
+    otherCostsController.dispose();
     super.dispose();
   }
 
@@ -160,83 +197,150 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     return Padding(
       padding: EdgeInsets.fromLTRB(
           16, 0, 16, MediaQuery.viewInsetsOf(context).bottom + 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(isPersonal ? 'Mi vehículo' : 'Mi camión',
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          TextField(
-            controller: consumptionController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Consumo L/100 km',
-              errorText: _amountError(consumptionController),
-              helperText: isPersonal
-                  ? 'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'
-                  : null,
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: maintenanceController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Mantenimiento por km',
-              errorText: _amountError(maintenanceController),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const Text('Incluye neumáticos, aceite, service y reparaciones.'),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-                onPressed: _showMaintenanceHelper,
-                child: const Text('Calcular mantenimiento por km')),
-          ),
-          if (!isPersonal)
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(isPersonal ? 'Mi vehículo' : 'Mi camión',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
             TextField(
-              controller: dailyFixedCostController,
+              controller: consumptionController,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText:
-                    'Costos fijos por día (seguro, amortización, sueldo del chofer)',
-                helperText: 'Se multiplica por los días estimados del viaje.',
-                errorText: _amountError(dailyFixedCostController),
+                labelText: 'Consumo L/100 km',
+                errorText: _amountError(consumptionController),
+                helperText: isPersonal
+                    ? 'Si no sabés el consumo, usá el dato del manual o de la ficha de tu auto.'
+                    : null,
               ),
               onChanged: (_) => setState(() {}),
             ),
-          if (!isPersonal) const SizedBox(height: 10),
-          if (!isPersonal)
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              value: selectedVehicleType,
+              decoration: const InputDecoration(labelText: 'Tipo de vehículo'),
+              items: const [
+                DropdownMenuItem(value: 'camion', child: Text('Camión')),
+                DropdownMenuItem(value: 'camioneta', child: Text('Camioneta')),
+                DropdownMenuItem(value: 'auto', child: Text('Auto')),
+                DropdownMenuItem(value: 'moto', child: Text('Moto')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => selectedVehicleType = value);
+              },
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                  child: TextField(
+                      controller: brandController,
+                      decoration: const InputDecoration(
+                          labelText: 'Marca (opcional)'))),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: TextField(
+                      controller: modelController,
+                      decoration: const InputDecoration(
+                          labelText: 'Modelo (opcional)'))),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                  child: TextField(
+                      controller: yearController,
+                      keyboardType: TextInputType.number,
+                      decoration:
+                          const InputDecoration(labelText: 'Año (opcional)'))),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: TextField(
+                      controller: fuelTypeController,
+                      decoration: const InputDecoration(
+                          labelText: 'Combustible (opcional)'))),
+            ]),
+            const SizedBox(height: 10),
             TextField(
-              controller: capacityController,
+              controller: maintenanceController,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Capacidad tn',
-                errorText: _amountError(capacityController),
+                labelText: 'Mantenimiento por km',
+                errorText: _amountError(maintenanceController),
               ),
               onChanged: (_) => setState(() {}),
             ),
-          if (!isPersonal) const SizedBox(height: 10),
-          if (!isPersonal)
-            TextField(
-              controller: plateController,
-              textCapitalization: TextCapitalization.characters,
-              decoration:
-                  const InputDecoration(labelText: 'Patente (opcional)'),
-            ),
-          if (validationMessage != null) ...[
+            const Text(
+                'Incluye aceite, service y reparaciones. Cargá los neumáticos aparte para no contarlos dos veces.'),
             const SizedBox(height: 8),
-            Text(validationMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            TextField(
+                controller: tireCostController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                    labelText: 'Neumáticos por km (opcional)',
+                    errorText: _amountError(tireCostController)),
+                onChanged: (_) => setState(() {})),
+            const SizedBox(height: 10),
+            TextField(
+                controller: otherCostsController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                    labelText: 'Otros costos operativos por km (opcional)',
+                    errorText: _amountError(otherCostsController)),
+                onChanged: (_) => setState(() {})),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                  onPressed: _showMaintenanceHelper,
+                  child: const Text('Calcular mantenimiento por km')),
+            ),
+            if (!isPersonal)
+              TextField(
+                controller: dailyFixedCostController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText:
+                      'Costos fijos por día (seguro, amortización, sueldo del chofer)',
+                  helperText: 'Se multiplica por los días estimados del viaje.',
+                  errorText: _amountError(dailyFixedCostController),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            if (!isPersonal) const SizedBox(height: 10),
+            if (!isPersonal)
+              TextField(
+                controller: capacityController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Capacidad tn',
+                  errorText: _amountError(capacityController),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            if (!isPersonal) const SizedBox(height: 10),
+            if (!isPersonal)
+              TextField(
+                controller: plateController,
+                textCapitalization: TextCapitalization.characters,
+                decoration:
+                    const InputDecoration(labelText: 'Patente (opcional)'),
+              ),
+            if (validationMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(validationMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
+            const SizedBox(height: 14),
+            FilledButton(
+                onPressed: _save, child: const Text('Guardar vehículo')),
           ],
-          const SizedBox(height: 14),
-          FilledButton(onPressed: _save, child: const Text('Guardar vehículo')),
-        ],
+        ),
       ),
     );
   }
@@ -246,6 +350,11 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
     final parsedMaintenance = parseAmount(maintenanceController.text);
     final parsedCapacity = parseAmount(capacityController.text);
     final parsedDailyFixedCost = parseAmount(dailyFixedCostController.text);
+    final parsedTireCost = parseAmount(tireCostController.text);
+    final parsedOtherCosts = parseAmount(otherCostsController.text);
+    final parsedYear = yearController.text.trim().isEmpty
+        ? null
+        : int.tryParse(yearController.text.trim());
     final consumption = parsedConsumption ?? 0;
     final maintenance = parsedMaintenance ?? 0;
     final capacity = parsedCapacity ?? 0;
@@ -258,7 +367,12 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
             ((capacityController.text.trim().isNotEmpty &&
                     parsedCapacity == null) ||
                 (dailyFixedCostController.text.trim().isNotEmpty &&
-                    parsedDailyFixedCost == null)));
+                    parsedDailyFixedCost == null))) ||
+        (tireCostController.text.trim().isNotEmpty && parsedTireCost == null) ||
+        (otherCostsController.text.trim().isNotEmpty &&
+            parsedOtherCosts == null) ||
+        (yearController.text.trim().isNotEmpty &&
+            (parsedYear == null || parsedYear <= 0));
     if (hasInvalidText ||
         consumption <= 0 ||
         maintenance < 0 ||
@@ -277,6 +391,15 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
         capacityTons: isPersonal ? 0 : capacity,
         plate: isPersonal ? '' : plateController.text.trim(),
         dailyFixedCost: isPersonal ? 0 : dailyFixedCost,
+        id: widget.profile?.id,
+        vehicleType: selectedVehicleType,
+        brand: brandController.text.trim(),
+        model: modelController.text.trim(),
+        year: parsedYear,
+        fuelType: fuelTypeController.text.trim(),
+        tireCostPerKm: parsedTireCost ?? 0,
+        otherOperatingCostsPerKm: parsedOtherCosts ?? 0,
+        isPrimary: widget.profile?.isPrimary ?? true,
       ),
     );
   }

@@ -15,6 +15,7 @@ import '../../../trip_data/domain/models/trip_inputs.dart';
 import '../../../vehicle_profile/domain/models/vehicle_profile.dart';
 import '../../../vehicle_profile/domain/repositories/vehicle_profile_repository.dart';
 import '../../domain/models/trip_analysis.dart';
+import '../../domain/models/profitability_status.dart';
 import '../../domain/services/profitability_calculator.dart';
 
 class TripQuoteController extends ChangeNotifier {
@@ -36,6 +37,7 @@ class TripQuoteController extends ChangeNotifier {
   final TripRepository tripRepository;
 
   final List<StreamSubscription<dynamic>> _subscriptions = [];
+  StreamSubscription<List<TripRecord>>? _historySubscription;
   bool _historyLoaded = false;
   int _originRevision = 0;
   int _destinationRevision = 0;
@@ -49,6 +51,7 @@ class TripQuoteController extends ChangeNotifier {
   int travelers = 1;
   List<TripRecord> history = [];
   bool isHistoryLoading = false;
+  String? historyErrorMessage;
 
   String origin = '';
   String destination = '';
@@ -64,13 +67,17 @@ class TripQuoteController extends ChangeNotifier {
   bool isDestinationResolving = false;
   bool isSaving = false;
   String? errorMessage;
+  String? vehicleProfileErrorMessage;
   RouteInfo? route;
   CostInputs costs;
   TollEstimate? tollEstimate;
   bool tollsEditedManually = false;
+  TripRecord? _displayedSavedTrip;
 
   VehicleProfile? get activeVehicle =>
       purpose == TripPurpose.personal ? personalVehicle : vehicleProfile;
+
+  TripRecord? get displayedSavedTrip => _displayedSavedTrip;
 
   double get costPerPerson =>
       (analysis?.totalCosts ?? 0) / (travelers < 1 ? 1 : travelers);
@@ -100,6 +107,8 @@ class TripQuoteController extends ChangeNotifier {
   double get grossIncome => tripInputs.grossIncome;
 
   TripAnalysis? get analysis {
+    final savedTrip = _displayedSavedTrip;
+    if (savedTrip != null) return analysisForRecord(savedTrip);
     final profile = activeVehicle;
     final currentRoute = route;
     if (currentRoute == null ||
@@ -116,11 +125,54 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   TripAnalysis? analysisForRecord(TripRecord record) {
-    return _calculateAnalysis(
-      route: record.route,
-      trip: record.trip,
-      costs: record.costs,
-      emptyReturn: record.emptyReturn,
+    final effectiveRoute =
+        record.emptyReturn ? record.route.withEmptyReturn() : record.route;
+    final distance = effectiveRoute.distanceKm;
+    final profile = record.vehicleProfile;
+    final fuelCost = profile == null
+        ? 0.0
+        : distance *
+            profile.consumptionLitersPer100Km /
+            100 *
+            record.costs.fuelPricePerLiter;
+    final maintenance =
+        profile == null ? 0.0 : distance * profile.maintenanceCostPerKm;
+    final tires = profile == null ? 0.0 : distance * profile.tireCostPerKm;
+    final other =
+        profile == null ? 0.0 : distance * profile.otherOperatingCostsPerKm;
+    final fixed = profile == null
+        ? record.totalCosts
+        : record.costs.tolls + record.costs.allowances;
+    final timeCost = profile == null || record.trip.purpose == TripPurpose.personal
+        ? 0.0
+        : profile.dailyFixedCost * effectiveRoute.durationDays;
+    final status = switch (record.calculationStatus) {
+      'profitable' => ProfitabilityStatus.profitable,
+      'low' => ProfitabilityStatus.low,
+      'loss' => ProfitabilityStatus.loss,
+      _ => calculator.statusForValues(
+          netProfit: record.netProfit,
+          marginPercent: record.marginPercent,
+        ),
+    };
+    double divide(double value, double by) => by == 0 ? 0 : value / by;
+    return TripAnalysis(
+      grossIncome: record.income,
+      fuelCost: fuelCost,
+      maintenanceCost: maintenance,
+      tireCost: tires,
+      otherOperatingCost: other,
+      fixedCosts: fixed,
+      timeCost: timeCost,
+      totalCosts: record.totalCosts,
+      netProfit: record.netProfit,
+      marginPercent: record.marginPercent,
+      incomePerKm: divide(record.income, distance),
+      costPerKm: divide(record.totalCosts, distance),
+      profitPerKm: divide(record.netProfit, distance),
+      breakEvenPrice: record.totalCosts,
+      minimumPricePerTon: divide(record.totalCosts, record.trip.tons),
+      status: status,
     );
   }
 
@@ -222,6 +274,7 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void resetSimulation() {
+    _displayedSavedTrip = null;
     _originRevision++;
     _destinationRevision++;
     _pendingOriginName = Future<void>.value();
@@ -270,11 +323,31 @@ class TripQuoteController extends ChangeNotifier {
 
   void load() {
     _subscriptions.add(
-      vehicleProfileRepository.watch().listen((profile) {
-        vehicleProfile = profile;
-        notifyListeners();
-      }),
+      vehicleProfileRepository.watchAll().listen(
+        (profiles) {
+          vehicleProfileErrorMessage = null;
+          final freight = profiles.where((profile) =>
+              profile.vehicleType != 'auto' && profile.vehicleType != 'moto');
+          final personal = profiles.where((profile) =>
+              profile.vehicleType == 'auto' || profile.vehicleType == 'moto');
+          vehicleProfile = _primaryVehicle(freight);
+          personalVehicle = _primaryVehicle(personal);
+          notifyListeners();
+        },
+        onError: (_) {
+          vehicleProfileErrorMessage =
+              'No se pudo cargar el vehículo guardado. Revisá la conexión.';
+          notifyListeners();
+        },
+      ),
     );
+  }
+
+  VehicleProfile? _primaryVehicle(Iterable<VehicleProfile> profiles) {
+    for (final profile in profiles) {
+      if (profile.isPrimary) return profile;
+    }
+    return profiles.firstOrNull;
   }
 
   void loadHistory() {
@@ -283,23 +356,29 @@ class TripQuoteController extends ChangeNotifier {
     }
     isHistoryLoading = true;
     notifyListeners();
-    _subscriptions.add(
-      tripRepository.watchRecent().listen(
-        (items) {
-          history = items;
-          isHistoryLoading = false;
-          _historyLoaded = true;
-          notifyListeners();
-        },
-        onError: (_) {
-          isHistoryLoading = false;
-          notifyListeners();
-        },
-      ),
+    unawaited(_historySubscription?.cancel());
+    _historySubscription = tripRepository.watchRecent().listen(
+      (items) {
+        history = items;
+        isHistoryLoading = false;
+        _historyLoaded = true;
+        historyErrorMessage = null;
+        notifyListeners();
+      },
+      onError: (_) {
+        isHistoryLoading = false;
+        _historyLoaded = false;
+        _historyLoaded = false;
+        _historyLoaded = false;
+        historyErrorMessage =
+            'No se pudo cargar el historial. Revisá tu conexión e intentá de nuevo.';
+        notifyListeners();
+      },
     );
   }
 
   void setOriginPoint(LatLngValue point) {
+    _displayedSavedTrip = null;
     final revision = ++_originRevision;
     originPoint = point;
     origin = 'Punto elegido en el mapa';
@@ -316,6 +395,7 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void setDestinationPoint(LatLngValue point) {
+    _displayedSavedTrip = null;
     final revision = ++_destinationRevision;
     destinationPoint = point;
     destination = 'Punto elegido en el mapa';
@@ -332,6 +412,7 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void setOriginText(String value) {
+    _displayedSavedTrip = null;
     if (origin == value && originPoint == null) return;
     if (origin != value) _originRevision++;
     origin = value;
@@ -343,6 +424,7 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void setDestinationText(String value) {
+    _displayedSavedTrip = null;
     if (destination == value && destinationPoint == null) return;
     if (destination != value) _destinationRevision++;
     destination = value;
@@ -400,47 +482,70 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   Future<void> saveVehicleProfile(VehicleProfile profile) async {
-    await vehicleProfileRepository.save(profile);
-    vehicleProfile = profile;
+    _displayedSavedTrip = null;
+    errorMessage = null;
+    try {
+      vehicleProfile = await vehicleProfileRepository.save(profile);
+    } on Object catch (error) {
+      errorMessage = 'No se pudo guardar el vehículo: ${_readableError(error)}';
+    }
     notifyListeners();
   }
 
-  void savePersonalVehicle(VehicleProfile profile) {
-    personalVehicle = profile;
+  Future<void> savePersonalVehicle(VehicleProfile profile) async {
+    _displayedSavedTrip = null;
+    errorMessage = null;
+    try {
+      personalVehicle = await vehicleProfileRepository.save(profile);
+    } on Object catch (error) {
+      errorMessage = 'No se pudo guardar el vehículo: ${_readableError(error)}';
+    }
+    if (errorMessage != null) return;
     notifyListeners();
+  }
+
+  Future<void> deleteTrip(String tripId) async {
+    await tripRepository.delete(tripId);
   }
 
   void setTravelers(int value) {
+    _displayedSavedTrip = null;
     travelers = value < 1 ? 1 : value;
     notifyListeners();
   }
 
   void setPricingMode(PricingMode value) {
+    _displayedSavedTrip = null;
     pricingMode = value;
     notifyListeners();
   }
 
   void setFlatRate(double value) {
+    _displayedSavedTrip = null;
     flatRate = value;
     notifyListeners();
   }
 
   void setTons(double value) {
+    _displayedSavedTrip = null;
     tons = value;
     notifyListeners();
   }
 
   void setPricePerTon(double value) {
+    _displayedSavedTrip = null;
     pricePerTon = value;
     notifyListeners();
   }
 
   void setFuelPrice(double value) {
+    _displayedSavedTrip = null;
     costs = costs.copyWith(fuelPricePerLiter: value);
     notifyListeners();
   }
 
   void setTolls(double value) {
+    _displayedSavedTrip = null;
     tollsEditedManually = true;
     costs = costs.copyWith(tolls: value);
     notifyListeners();
@@ -452,11 +557,13 @@ class TripQuoteController extends ChangeNotifier {
   }
 
   void setAllowances(double value) {
+    _displayedSavedTrip = null;
     costs = costs.copyWith(allowances: value);
     notifyListeners();
   }
 
   void setEmptyReturn(bool value) {
+    _displayedSavedTrip = null;
     emptyReturn = value;
     if (!tollsEditedManually) _applyEstimatedTolls(force: true);
     notifyListeners();
@@ -508,10 +615,17 @@ class TripQuoteController extends ChangeNotifier {
       costs: costs,
       emptyReturn: emptyReturn,
       analysis: currentAnalysis,
+      vehicleProfile: _displayedSavedTrip?.vehicleProfile ?? activeVehicle,
     );
   }
 
   void openTrip(TripRecord record) {
+    _displayedSavedTrip = null;
+    openTripForResult(record);
+  }
+
+  void openTripForResult(TripRecord record) {
+    _displayedSavedTrip = record;
     _originRevision++;
     _destinationRevision++;
     _routeRevision++;
@@ -675,6 +789,7 @@ class TripQuoteController extends ChangeNotifier {
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }
+    _historySubscription?.cancel();
     super.dispose();
   }
 }

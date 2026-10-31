@@ -40,7 +40,7 @@ void main() {
     controller.dispose();
   });
 
-  test('legacy trip record recalculates with prior analysis values', () {
+  test('saved trip analysis preserves stored totals and vehicle snapshot', () {
     final controller = _controller();
     controller.vehicleProfile = const VehicleProfile(
       consumptionLitersPer100Km: 30,
@@ -60,9 +60,21 @@ void main() {
       'trip': {'pricingMode': 'flatRate', 'flatRate': 100000},
       'costs': {'fuelPricePerLiter': 1000, 'tolls': 5000, 'allowances': 2000},
       'emptyReturn': false,
+      'income': 100000,
+      'totalCosts': 47000,
+      'netProfit': 53000,
+      'marginPercent': 53,
+      'vehicleProfile': {
+        'consumptionLitersPer100Km': 10,
+        'maintenanceCostPerKm': 200,
+        'tireCostPerKm': 5,
+        'otherOperatingCostsPerKm': 2,
+      },
     });
     final analysis = controller.analysisForRecord(record)!;
     expect(analysis.timeCost, 0);
+    expect(analysis.fuelCost, 10000);
+    expect(analysis.maintenanceCost, 20000);
     expect(analysis.totalCosts, 47000);
     expect(analysis.netProfit, 53000);
     controller.dispose();
