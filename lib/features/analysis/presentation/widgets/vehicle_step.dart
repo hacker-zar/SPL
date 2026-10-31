@@ -220,6 +220,8 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
+              // Keep compatibility with the deployment Flutter 3.27.4 SDK.
+              // ignore: deprecated_member_use
               value: selectedVehicleType,
               decoration: const InputDecoration(labelText: 'Tipo de vehículo'),
               items: const [
